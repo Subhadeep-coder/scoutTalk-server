@@ -1,13 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiUnauthorizedResponse,
-} from '../docs';
+import { ApiTags, ApiOperation, ApiResponse } from '../docs';
 import { AppService } from './app.service';
 import { HelloResponseDto } from '../docs/dto/response.dto';
+import { Public } from './auth/decorators/public.decorator';
 
 @ApiTags('health')
 @Controller()
@@ -15,7 +10,7 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  @ApiBearerAuth('JWT-auth')
+  @Public()
   @ApiOperation({
     summary: 'Health Check',
     description:
@@ -25,9 +20,6 @@ export class AppController {
     status: 200,
     description: 'Application is healthy',
     type: HelloResponseDto,
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT token',
   })
   getHello(): string {
     return this.appService.getHello();
