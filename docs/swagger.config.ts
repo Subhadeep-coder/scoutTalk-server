@@ -16,6 +16,7 @@ export const swaggerConfig = new DocumentBuilder()
     'JWT-auth',
   )
   .addTag('auth', 'Authentication endpoints')
+  .addTag('users', 'User management endpoints')
   .addTag('health', 'Health check endpoints')
   .build();
 
