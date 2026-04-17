@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { appConfig, googleConfig, jwtConfig } from './config';
+import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -13,6 +15,8 @@ import { appConfig, googleConfig, jwtConfig } from './config';
       isGlobal: true,
       load: [appConfig, googleConfig, jwtConfig],
     }),
+    PrismaModule,
+    UsersModule,
     AuthModule,
   ],
   controllers: [AppController],

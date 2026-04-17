@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { OAuth2Client } from 'google-auth-library';
 import { JwtConfig } from '../config/interfaces/config.interface';
 
 export interface JwtPayload {
@@ -18,6 +19,8 @@ export interface GoogleUser {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService<Record<string, unknown>>,
@@ -51,5 +54,36 @@ export class AuthService {
       clientSecret: string;
     }>('google');
     return !!(googleConfig?.clientId && googleConfig?.clientSecret);
+  }
+
+  async validateMobileGoogleToken(idToken: string): Promise<GoogleUser> {
+    const googleConfig = this.configService.get<{
+      clientId: string;
+    }>('google');
+
+    const client = new OAuth2Client(googleConfig?.clientId);
+
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: googleConfig?.clientId,
+      });
+
+      const payload = ticket.getPayload();
+
+      if (!payload) {
+        throw new UnauthorizedException('Invalid token payload');
+      }
+
+      return {
+        googleId: payload.sub,
+        email: payload.email || '',
+        name: payload.name || '',
+        picture: payload.picture,
+      };
+    } catch (error) {
+      this.logger.error('Google token validation failed', error);
+      throw new UnauthorizedException('Invalid Google ID token');
+    }
   }
 }

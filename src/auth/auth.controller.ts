@@ -1,4 +1,12 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Req,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 import {
@@ -17,6 +25,7 @@ import {
   AuthErrorResponseDto,
   UserResponseDto,
 } from '../../docs/dto/response.dto';
+import { MobileGoogleAuthDto } from '../../docs/dto/mobile-auth.dto';
 
 interface AuthenticatedRequest extends Request {
   user: GoogleUser;
@@ -26,6 +35,34 @@ interface AuthenticatedRequest extends Request {
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  @Post('google/mobile')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Google Sign-In for Mobile Apps',
+    description:
+      'Validates Google ID token from Android/iOS app and returns JWT for API authentication.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Authentication successful',
+    type: GoogleCallbackResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid Google ID token',
+  })
+  async mobileGoogleAuth(@Body() body: MobileGoogleAuthDto) {
+    const googleUser = await this.authService.validateMobileGoogleToken(
+      body.idToken,
+    );
+    const token = this.authService.generateJwt(googleUser);
+    return {
+      user: googleUser,
+      access_token: token,
+    };
+  }
 
   @Get('google')
   @Public()
