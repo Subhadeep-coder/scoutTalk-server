@@ -12,7 +12,7 @@ describe('PrismaService', () => {
   });
 
   it('should be in mock mode when DATABASE_URL is not set', async () => {
-    const { PrismaService } = require('./prisma.service');
+    const { PrismaService } = require('../../src/prisma/prisma.service');
     const service = new PrismaService();
     expect(service.user).toBeFalsy();
   });
