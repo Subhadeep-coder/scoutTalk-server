@@ -7,7 +7,6 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 import {
   ApiTags,
@@ -17,6 +16,7 @@ import {
   ApiUnauthorizedResponse,
 } from '../../docs';
 import { Public } from './decorators/public.decorator';
+import { SkipOnboardingCheck } from './decorators/skip-onboarding.decorator';
 import { AuthService, GoogleUser } from './auth.service';
 import {
   AuthStatusResponseDto,
@@ -24,11 +24,14 @@ import {
   GoogleCallbackResponseDto,
   AuthErrorResponseDto,
   UserResponseDto,
+  RefreshTokenResponseDto,
+  LogoutResponseDto,
 } from '../../docs/dto/response.dto';
 import { MobileGoogleAuthDto } from '../../docs/dto/mobile-auth.dto';
+import { RefreshTokenDto } from '../../docs/dto/refresh-token.dto';
 
 interface AuthenticatedRequest extends Request {
-  user: GoogleUser;
+  user: GoogleUser & { userId?: string };
 }
 
 @ApiTags('auth')
@@ -54,13 +57,13 @@ export class AuthController {
     description: 'Invalid Google ID token',
   })
   async mobileGoogleAuth(@Body() body: MobileGoogleAuthDto) {
-    const googleUser = await this.authService.validateMobileGoogleToken(
-      body.idToken,
-    );
-    const token = this.authService.generateJwt(googleUser);
+    const { user, isOnboarded } =
+      await this.authService.validateMobileGoogleToken(body.idToken);
+    const tokens = await this.authService.generateTokens(user);
     return {
-      user: googleUser,
-      access_token: token,
+      user,
+      ...tokens,
+      onboarding: isOnboarded,
     };
   }
 
@@ -117,11 +120,59 @@ export class AuthController {
       };
     }
     const user = req.user;
-    const token = this.authService.generateJwt(user);
+    const tokens = await this.authService.generateTokens(user);
+    const dbUser = await this.authService.findOrCreateFromGoogle(user);
     return {
       user,
-      access_token: token,
+      ...tokens,
+      onboarding: dbUser.isOnboarded,
     };
+  }
+
+  @Post('refresh')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Refresh Access Token',
+    description:
+      'Exchange a valid refresh token for a new access token and refresh token.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token refreshed successfully',
+    type: RefreshTokenResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired refresh token',
+  })
+  async refreshToken(@Body() body: RefreshTokenDto) {
+    const tokens = await this.authService.refreshAccessToken(
+      body.refresh_token,
+    );
+    return tokens;
+  }
+
+  @Post('logout')
+  @Public()
+  @SkipOnboardingCheck()
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Logout',
+    description: 'Invalidate the current refresh token to logout the user.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Logged out successfully',
+    type: LogoutResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  async logout(@Req() req: Request, @Body() body: RefreshTokenDto) {
+    await this.authService.revokeRefreshToken(body.refresh_token);
+    return { message: 'Logged out successfully' };
   }
 
   @Get('status')
@@ -160,10 +211,16 @@ export class AuthController {
   })
   async getCurrentUser(@Req() req: Request) {
     const user = (req as any).user;
+    const dbUser = await this.authService.findOrCreateFromGoogle({
+      googleId: user?.googleId,
+      email: user?.email,
+      name: user?.name,
+    });
     return {
       userId: user?.userId,
       email: user?.email,
       name: user?.name,
+      onboarding: dbUser.isOnboarded,
     };
   }
 }

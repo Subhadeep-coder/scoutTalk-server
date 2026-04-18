@@ -20,6 +20,7 @@ import {
   ApiOkResponse,
 } from '../../docs';
 import { Public } from '../auth/decorators/public.decorator';
+import { SkipOnboardingCheck } from '../auth/decorators/skip-onboarding.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
 import {
@@ -34,6 +35,7 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get('me')
+  @SkipOnboardingCheck()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
@@ -62,6 +64,7 @@ export class UsersController {
   }
 
   @Get('me/onboarding-status')
+  @SkipOnboardingCheck()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
@@ -88,6 +91,7 @@ export class UsersController {
   }
 
   @Post('me/username')
+  @SkipOnboardingCheck()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.OK)

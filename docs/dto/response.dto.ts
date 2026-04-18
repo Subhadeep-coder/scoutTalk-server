@@ -44,6 +44,12 @@ export class GoogleCallbackResponseDto {
 
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
   access_token: string;
+
+  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
+  refresh_token: string;
+
+  @ApiProperty({ example: false })
+  onboarding: boolean;
 }
 
 export class AuthErrorResponseDto {
@@ -66,6 +72,19 @@ export class JwtPayloadDto {
 
   @ApiProperty({ example: 'John Doe' })
   name: string;
+}
+
+export class RefreshTokenResponseDto {
+  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
+  access_token: string;
+
+  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
+  refresh_token: string;
+}
+
+export class LogoutResponseDto {
+  @ApiProperty({ example: 'Logged out successfully' })
+  message: string;
 }
 
 export class HelloResponseDto {

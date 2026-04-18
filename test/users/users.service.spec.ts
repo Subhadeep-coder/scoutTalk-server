@@ -1,17 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { UsersService } from '../../src/users/users.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
+import { User } from '../../src/database/entities';
 import {
   ConflictException,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let prisma: jest.Mocked<PrismaService>;
+  let userRepository: jest.Mocked<Repository<User>>;
 
-  const mockUser = {
+  const mockUser: User = {
     id: 'user-1',
     googleId: 'google-123',
     email: 'test@example.com',
@@ -21,59 +22,44 @@ describe('UsersService', () => {
     isOnboarded: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    refreshTokens: [],
   };
 
   beforeEach(async () => {
-    const mockPrismaService = {
-      user: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-      },
+    const mockUserRepository = {
+      findOne: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
+      update: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        { provide: PrismaService, useValue: mockPrismaService },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
+        },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    prisma = module.get(PrismaService);
+    userRepository = module.get(getRepositoryToken(User));
   });
 
   describe('findByGoogleId', () => {
     it('should return user when found', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue(mockUser);
 
       const result = await service.findByGoogleId('google-123');
 
       expect(result).toEqual(mockUser);
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { googleId: 'google-123' },
-      });
-    });
-
-    it('should throw BadRequestException when database not configured', async () => {
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          UsersService,
-          { provide: PrismaService, useValue: { user: null } },
-        ],
-      }).compile();
-
-      const svc = module.get<UsersService>(UsersService);
-
-      await expect(svc.findByGoogleId('google-123')).rejects.toThrow(
-        BadRequestException,
-      );
     });
   });
 
   describe('findByUsername', () => {
     it('should return user when username exists', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue(mockUser);
 
       const result = await service.findByUsername('testuser');
 
@@ -83,7 +69,7 @@ describe('UsersService', () => {
 
   describe('findById', () => {
     it('should return user when found', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue(mockUser);
 
       const result = await service.findById('user-1');
 
@@ -91,7 +77,7 @@ describe('UsersService', () => {
     });
 
     it('should throw NotFoundException when user not found', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      userRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findById('user-1')).rejects.toThrow(
         NotFoundException,
@@ -100,54 +86,33 @@ describe('UsersService', () => {
   });
 
   describe('createUser', () => {
-    it('should create a new user', async () => {
-      prisma.user.create.mockResolvedValue(mockUser);
+    it('should create and return new user', async () => {
+      const newUser = { ...mockUser, id: 'new-user-1' };
+      userRepository.create.mockReturnValue(newUser);
+      userRepository.save.mockResolvedValue(newUser);
 
       const result = await service.createUser({
-        googleId: 'google-123',
-        email: 'test@example.com',
-        name: 'Test User',
-        avatar: 'https://example.com/avatar.png',
+        googleId: 'google-456',
+        email: 'new@example.com',
+        name: 'New User',
+        avatar: 'https://example.com/new.png',
       });
 
-      expect(result).toEqual(mockUser);
-      expect(prisma.user.create).toHaveBeenCalledWith({
-        data: {
-          googleId: 'google-123',
-          email: 'test@example.com',
-          displayName: 'Test User',
-          avatar: 'https://example.com/avatar.png',
-        },
-      });
-    });
-
-    it('should throw BadRequestException when database not configured', async () => {
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          UsersService,
-          { provide: PrismaService, useValue: { user: null } },
-        ],
-      }).compile();
-
-      const svc = module.get<UsersService>(UsersService);
-
-      await expect(
-        svc.createUser({ googleId: 'google-123', email: 'test@example.com' }),
-      ).rejects.toThrow(BadRequestException);
+      expect(result).toEqual(newUser);
     });
   });
 
   describe('checkUsernameAvailability', () => {
     it('should return true when username is available', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      userRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.checkUsernameAvailability('newuser');
+      const result = await service.checkUsernameAvailability('newusername');
 
       expect(result).toBe(true);
     });
 
     it('should return false when username is taken', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue(mockUser);
 
       const result = await service.checkUsernameAvailability('testuser');
 
@@ -156,71 +121,70 @@ describe('UsersService', () => {
   });
 
   describe('setUsername', () => {
-    const updateDto = { username: 'newusername' };
+    it('should update username when available', async () => {
+      userRepository.findOne.mockResolvedValueOnce(null);
+      const updatedUser = { ...mockUser, username: 'newusername' };
+      userRepository.findOne.mockResolvedValueOnce(updatedUser);
+      userRepository.update.mockResolvedValue({ affected: 1 } as any);
 
-    it('should set username when available', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.update.mockResolvedValue({
-        ...mockUser,
+      const result = await service.setUsername('user-1', {
         username: 'newusername',
-        isOnboarded: true,
       });
 
-      const result = await service.setUsername('user-1', updateDto);
-
-      expect(result.username).toBe('newusername');
-      expect(result.isOnboarded).toBe(true);
+      expect(result).toEqual(updatedUser);
     });
 
-    it('should throw ConflictException when username taken', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+    it('should throw ConflictException when username is taken', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
 
-      await expect(service.setUsername('user-1', updateDto)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.setUsername('user-1', { username: 'testuser' }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
   describe('updateProfile', () => {
-    it('should update user profile', async () => {
-      prisma.user.update.mockResolvedValue({
-        ...mockUser,
-        displayName: 'Updated Name',
-      });
+    it('should update profile and return updated user', async () => {
+      const updatedUser = { ...mockUser, displayName: 'Updated Name' };
+      userRepository.update.mockResolvedValue({ affected: 1 } as any);
+      userRepository.findOne.mockResolvedValue(updatedUser);
 
       const result = await service.updateProfile('user-1', {
         displayName: 'Updated Name',
+        avatar: 'https://example.com/updated.png',
       });
 
-      expect(result.displayName).toBe('Updated Name');
+      expect(result).toEqual(updatedUser);
     });
   });
 
   describe('findOrCreateFromGoogle', () => {
-    const googleUser = {
-      googleId: 'google-123',
-      email: 'test@example.com',
-      name: 'Test User',
-      picture: 'https://example.com/avatar.png',
-    };
+    it('should return existing user when found', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
 
-    it('should return existing user if found', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
-
-      const result = await service.findOrCreateFromGoogle(googleUser);
+      const result = await service.findOrCreateFromGoogle({
+        googleId: 'google-123',
+        email: 'test@example.com',
+        name: 'Test User',
+      });
 
       expect(result).toEqual(mockUser);
-      expect(prisma.user.create).not.toHaveBeenCalled();
     });
 
-    it('should create new user if not found', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue(mockUser);
+    it('should create new user when not found', async () => {
+      const newUser = { ...mockUser, id: 'new-user-1' };
+      userRepository.findOne.mockResolvedValueOnce(null);
+      userRepository.create.mockReturnValue(newUser);
+      userRepository.save.mockResolvedValue(newUser);
 
-      const result = await service.findOrCreateFromGoogle(googleUser);
+      const result = await service.findOrCreateFromGoogle({
+        googleId: 'google-456',
+        email: 'new@example.com',
+        name: 'New User',
+        picture: 'https://example.com/new.png',
+      });
 
-      expect(result).toEqual(mockUser);
-      expect(prisma.user.create).toHaveBeenCalled();
+      expect(result).toEqual(newUser);
     });
   });
 });

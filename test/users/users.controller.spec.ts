@@ -16,6 +16,7 @@ describe('UsersController', () => {
     isOnboarded: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    refreshTokens: [],
   };
 
   const mockRequest = {
@@ -112,7 +113,7 @@ describe('UsersController', () => {
       const unonboardedUser = {
         ...mockUser,
         isOnboarded: false,
-        username: null,
+        username: undefined,
       };
       usersService.findByGoogleId.mockResolvedValue(unonboardedUser);
       usersService.setUsername.mockResolvedValue({
