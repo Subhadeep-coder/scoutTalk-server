@@ -23,7 +23,7 @@ import {
   GoogleAuthResponseDto,
   GoogleCallbackResponseDto,
   AuthErrorResponseDto,
-  UserResponseDto,
+  AuthUserResponseDto,
   RefreshTokenResponseDto,
   LogoutResponseDto,
 } from '../../docs/dto/response.dto';
@@ -204,7 +204,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Current user information',
-    type: UserResponseDto,
+    type: AuthUserResponseDto,
   })
   @ApiUnauthorizedResponse({
     description: 'Unauthorized - Invalid or missing JWT token',

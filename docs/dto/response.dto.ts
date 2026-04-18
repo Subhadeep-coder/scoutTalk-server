@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '../decorators/api-decorators';
 
-export class UserResponseDto {
+export class AuthUserResponseDto {
   @ApiPropertyOptional()
   userId?: string;
 
