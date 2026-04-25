@@ -51,6 +51,7 @@ export class UsersService {
       email: data.email,
       name: data.name,
       avatar: data.avatar,
+      needsOnboarding: true,
     });
     return this.userRepository.save(user);
   }
@@ -70,7 +71,7 @@ export class UsersService {
 
     await this.userRepository.update(userId, {
       username: dto.username,
-      isOnboarded: true,
+      needsOnboarding: false,
     });
 
     return this.findById(userId);

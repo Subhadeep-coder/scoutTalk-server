@@ -34,7 +34,7 @@ export class OnboardingGuard implements CanActivate {
 
     const dbUser = await this.usersService.findByGoogleId(user.googleId);
 
-    if (!dbUser || !dbUser.isOnboarded) {
+    if (!dbUser || dbUser.needsOnboarding) {
       throw new ForbiddenException(
         'Please complete onboarding to access this resource. Set a username first.',
       );

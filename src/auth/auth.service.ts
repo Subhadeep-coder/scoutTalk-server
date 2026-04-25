@@ -151,7 +151,7 @@ export class AuthService {
 
   async validateMobileGoogleToken(
     idToken: string,
-  ): Promise<{ user: GoogleUser; isOnboarded: boolean }> {
+  ): Promise<{ user: GoogleUser; needsOnboarding: boolean }> {
     const googleConfig = this.configService.get<{
       clientId: string;
       clientIdAndroid: string;
@@ -203,7 +203,7 @@ export class AuthService {
 
     return {
       user: googleUser,
-      isOnboarded: user.isOnboarded,
+      needsOnboarding: user.needsOnboarding,
     };
   }
 

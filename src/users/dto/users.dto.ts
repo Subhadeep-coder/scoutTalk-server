@@ -43,7 +43,7 @@ export class UserResponseDto {
   avatar?: string;
 
   @ApiProperty()
-  isOnboarded: boolean;
+  needsOnboarding: boolean;
 
   @ApiProperty()
   createdAt: Date;

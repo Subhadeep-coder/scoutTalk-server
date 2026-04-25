@@ -3,10 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsersService } from '../../src/users/users.service';
 import { User } from '../../src/database/entities';
-import {
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -19,7 +16,7 @@ describe('UsersService', () => {
     username: 'testuser',
     displayName: 'Test User',
     avatar: 'https://example.com/avatar.png',
-    isOnboarded: true,
+    needsOnboarding: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     refreshTokens: [],

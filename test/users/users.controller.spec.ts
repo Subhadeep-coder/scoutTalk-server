@@ -13,7 +13,7 @@ describe('UsersController', () => {
     username: 'testuser',
     displayName: 'Test User',
     avatar: 'https://example.com/avatar.png',
-    isOnboarded: true,
+    needsOnboarding: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     refreshTokens: [],
@@ -65,7 +65,7 @@ describe('UsersController', () => {
         googleId: 'google-123',
         email: 'test@example.com',
         displayName: 'Test User',
-        isOnboarded: false,
+        needsOnboarding: true,
         username: null,
       });
     });
@@ -77,7 +77,7 @@ describe('UsersController', () => {
 
       const result = await controller.getOnboardingStatus(mockRequest as any);
 
-      expect(result).toEqual({ isOnboarded: true });
+      expect(result).toEqual({ needsOnboarding: false });
     });
 
     it('should return false if user not in database', async () => {
@@ -85,7 +85,7 @@ describe('UsersController', () => {
 
       const result = await controller.getOnboardingStatus(mockRequest as any);
 
-      expect(result).toEqual({ isOnboarded: false });
+      expect(result).toEqual({ needsOnboarding: true });
     });
   });
 
@@ -96,7 +96,7 @@ describe('UsersController', () => {
       usersService.setUsername.mockResolvedValue({
         ...mockUser,
         username: 'newuser',
-        isOnboarded: true,
+        needsOnboarding: false,
       });
 
       const result = await controller.setUsername(mockRequest as any, {
@@ -112,14 +112,14 @@ describe('UsersController', () => {
     it('should set username if user exists but not onboarded', async () => {
       const unonboardedUser = {
         ...mockUser,
-        isOnboarded: false,
+        needsOnboarding: true,
         username: undefined,
       };
       usersService.findByGoogleId.mockResolvedValue(unonboardedUser);
       usersService.setUsername.mockResolvedValue({
         ...mockUser,
         username: 'newuser',
-        isOnboarded: true,
+        needsOnboarding: false,
       });
 
       const result = await controller.setUsername(mockRequest as any, {

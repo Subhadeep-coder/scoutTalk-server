@@ -32,7 +32,7 @@ export class User {
   avatar?: string;
 
   @Column('boolean', { default: false })
-  isOnboarded: boolean;
+  needsOnboarding: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

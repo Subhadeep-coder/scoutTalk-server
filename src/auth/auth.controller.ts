@@ -57,13 +57,13 @@ export class AuthController {
     description: 'Invalid Google ID token',
   })
   async mobileGoogleAuth(@Body() body: MobileGoogleAuthDto) {
-    const { user, isOnboarded } =
+    const { user, needsOnboarding } =
       await this.authService.validateMobileGoogleToken(body.idToken);
     const tokens = await this.authService.generateTokens(user);
     return {
       user,
       ...tokens,
-      onboarding: isOnboarded,
+      onboarding: needsOnboarding,
     };
   }
 
@@ -125,7 +125,7 @@ export class AuthController {
     return {
       user,
       ...tokens,
-      onboarding: dbUser.isOnboarded,
+      onboarding: dbUser.needsOnboarding,
     };
   }
 
@@ -220,7 +220,7 @@ export class AuthController {
       userId: user?.userId,
       email: user?.email,
       name: user?.name,
-      onboarding: dbUser.isOnboarded,
+      onboarding: dbUser.needsOnboarding,
     };
   }
 }

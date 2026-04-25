@@ -55,7 +55,7 @@ export class UsersController {
         googleId: user.googleId,
         email: user.email,
         displayName: user.name,
-        isOnboarded: false,
+        needsOnboarding: true,
         username: null,
       };
     }
@@ -78,7 +78,7 @@ export class UsersController {
     schema: {
       type: 'object',
       properties: {
-        isOnboarded: { type: 'boolean' },
+        needsOnboarding: { type: 'boolean' },
       },
     },
   })
@@ -86,7 +86,7 @@ export class UsersController {
     const user = (req as any).user;
     const dbUser = await this.usersService.findByGoogleId(user.googleId);
     return {
-      isOnboarded: dbUser?.isOnboarded ?? false,
+      needsOnboarding: dbUser?.needsOnboarding ?? true,
     };
   }
 
@@ -122,7 +122,7 @@ export class UsersController {
       return this.usersService.setUsername(newUser.id, dto);
     }
 
-    if (dbUser.isOnboarded) {
+    if (!dbUser.needsOnboarding) {
       return {
         message: 'User already onboarded',
         user: dbUser,
