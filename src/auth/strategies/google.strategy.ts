@@ -27,10 +27,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy) {
 
   async validate(accessToken: string, refreshToken: string, profile: Profile) {
     const { id, displayName, emails, photos } = profile;
+    const nameParts = (displayName || '').split(' ');
     return {
       googleId: id,
       email: emails?.[0]?.value,
-      name: displayName,
+      firstName: nameParts[0] || '',
+      lastName: nameParts.slice(1).join(' ') || undefined,
       picture: photos?.[0]?.value,
       accessToken,
     };

@@ -24,6 +24,31 @@ export class UsersService {
     });
   }
 
+  async findByEmail(email: string) {
+    return this.userRepository.findOne({
+      where: { email },
+    });
+  }
+
+  async findByEmailWithPassword(email: string) {
+    return this.userRepository.findOne({
+      where: { email },
+      select: [
+        'id',
+        'email',
+        'password',
+        'firstName',
+        'lastName',
+        'displayName',
+        'avatar',
+        'needsOnboarding',
+        'username',
+        'createdAt',
+        'updatedAt',
+      ],
+    });
+  }
+
   async findByUsername(username: string) {
     return this.userRepository.findOne({
       where: { username },
@@ -41,16 +66,20 @@ export class UsersService {
   }
 
   async createUser(data: {
-    googleId: string;
+    googleId?: string;
     email: string;
-    name?: string;
+    firstName?: string;
+    lastName?: string;
     avatar?: string;
+    password?: string;
   }) {
     const user = this.userRepository.create({
       googleId: data.googleId,
       email: data.email,
-      name: data.name,
+      firstName: data.firstName,
+      lastName: data.lastName,
       avatar: data.avatar,
+      password: data.password,
       needsOnboarding: true,
     });
     return this.userRepository.save(user);
@@ -89,7 +118,8 @@ export class UsersService {
   async findOrCreateFromGoogle(googleUser: {
     googleId: string;
     email: string;
-    name?: string;
+    firstName: string;
+    lastName?: string;
     picture?: string;
   }) {
     let user = await this.findByGoogleId(googleUser.googleId);
@@ -98,7 +128,8 @@ export class UsersService {
       user = await this.createUser({
         googleId: googleUser.googleId,
         email: googleUser.email,
-        name: googleUser.name,
+        firstName: googleUser.firstName,
+        lastName: googleUser.lastName,
         avatar: googleUser.picture,
       });
     }

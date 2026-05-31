@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import {
@@ -47,14 +48,26 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async getCurrentUser(@Req() req: Request) {
     const user = (req as any).user;
-    const dbUser = await this.usersService.findByGoogleId(user.googleId);
+
+    const findUser = async () => {
+      if (user.googleId) {
+        return this.usersService.findByGoogleId(user.googleId);
+      }
+      if (user.userId) {
+        return this.usersService.findById(user.userId).catch(() => null);
+      }
+      return null;
+    };
+
+    const dbUser = await findUser();
 
     if (!dbUser) {
       return {
-        id: user.googleId,
-        googleId: user.googleId,
+        id: user.userId || user.googleId,
+        googleId: user.googleId || null,
         email: user.email,
-        displayName: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         needsOnboarding: true,
         username: null,
       };
@@ -84,7 +97,19 @@ export class UsersController {
   })
   async getOnboardingStatus(@Req() req: Request) {
     const user = (req as any).user;
-    const dbUser = await this.usersService.findByGoogleId(user.googleId);
+
+    const findUser = async () => {
+      if (user.googleId) {
+        return this.usersService.findByGoogleId(user.googleId);
+      }
+      if (user.userId) {
+        return this.usersService.findById(user.userId).catch(() => null);
+      }
+      return null;
+    };
+
+    const dbUser = await findUser();
+
     return {
       needsOnboarding: dbUser?.needsOnboarding ?? true,
     };
@@ -111,13 +136,24 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async setUsername(@Req() req: Request, @Body() dto: UpdateUsernameDto) {
     const user = (req as any).user;
-    const dbUser = await this.usersService.findByGoogleId(user.googleId);
+
+    const findUser = async () => {
+      if (user.googleId) {
+        return this.usersService.findByGoogleId(user.googleId);
+      }
+      if (user.userId) {
+        return this.usersService.findById(user.userId).catch(() => null);
+      }
+      return null;
+    };
+
+    const dbUser = await findUser();
 
     if (!dbUser) {
       const newUser = await this.usersService.createUser({
-        googleId: user.googleId,
         email: user.email,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
       });
       return this.usersService.setUsername(newUser.id, dto);
     }
@@ -143,10 +179,23 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async updateProfile(@Req() req: Request, @Body() dto: UpdateProfileDto) {
     const user = (req as any).user;
-    const dbUser = await this.usersService.findByGoogleId(user.googleId);
+
+    const findUser = async () => {
+      if (user.googleId) {
+        return this.usersService.findByGoogleId(user.googleId);
+      }
+      if (user.userId) {
+        return this.usersService.findById(user.userId).catch(() => null);
+      }
+      return null;
+    };
+
+    const dbUser = await findUser();
 
     if (!dbUser) {
-      throw new Error('User not found. Please complete onboarding first.');
+      throw new NotFoundException(
+        'User not found. Please complete onboarding first.',
+      );
     }
 
     return this.usersService.updateProfile(dbUser.id, dto);

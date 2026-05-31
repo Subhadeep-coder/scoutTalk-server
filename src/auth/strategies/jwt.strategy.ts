@@ -4,6 +4,14 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtConfig } from '../../config/interfaces/config.interface';
 
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  googleId?: string;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(configService: ConfigService<Record<string, unknown>>) {
@@ -16,12 +24,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: JwtPayload) {
     return {
-      googleId: payload.sub,
       userId: payload.sub,
       email: payload.email,
-      name: payload.name,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      googleId: payload.googleId,
     };
   }
+}
+
+export interface AuthenticatedUser {
+  userId: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  googleId?: string;
 }

@@ -14,6 +14,8 @@ describe('UsersService', () => {
     googleId: 'google-123',
     email: 'test@example.com',
     username: 'testuser',
+    firstName: 'Test',
+    lastName: 'User',
     displayName: 'Test User',
     avatar: 'https://example.com/avatar.png',
     needsOnboarding: false,
@@ -91,7 +93,8 @@ describe('UsersService', () => {
       const result = await service.createUser({
         googleId: 'google-456',
         email: 'new@example.com',
-        name: 'New User',
+        firstName: 'New',
+        lastName: 'User',
         avatar: 'https://example.com/new.png',
       });
 
@@ -162,7 +165,8 @@ describe('UsersService', () => {
       const result = await service.findOrCreateFromGoogle({
         googleId: 'google-123',
         email: 'test@example.com',
-        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
       });
 
       expect(result).toEqual(mockUser);
@@ -177,7 +181,8 @@ describe('UsersService', () => {
       const result = await service.findOrCreateFromGoogle({
         googleId: 'google-456',
         email: 'new@example.com',
-        name: 'New User',
+        firstName: 'New',
+        lastName: 'User',
         picture: 'https://example.com/new.png',
       });
 

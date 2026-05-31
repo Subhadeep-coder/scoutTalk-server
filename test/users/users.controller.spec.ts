@@ -23,7 +23,8 @@ describe('UsersController', () => {
     user: {
       googleId: 'google-123',
       email: 'test@example.com',
-      name: 'Test User',
+      firstName: 'Test',
+      lastName: 'User',
     },
   };
 
@@ -64,7 +65,8 @@ describe('UsersController', () => {
         id: 'google-123',
         googleId: 'google-123',
         email: 'test@example.com',
-        displayName: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
         needsOnboarding: true,
         username: null,
       });

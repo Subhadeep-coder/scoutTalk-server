@@ -4,10 +4,12 @@ import {
   Post,
   Body,
   Req,
+  Res,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -18,12 +20,12 @@ import {
 import { Public } from './decorators/public.decorator';
 import { SkipOnboardingCheck } from './decorators/skip-onboarding.decorator';
 import { AuthService, GoogleUser } from './auth.service';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { SignupDto, LoginDto } from './dto/auth.dto';
 import {
   AuthStatusResponseDto,
-  GoogleAuthResponseDto,
   GoogleCallbackResponseDto,
-  AuthErrorResponseDto,
-  AuthUserResponseDto,
+  AuthTokensResponseDto,
   RefreshTokenResponseDto,
   LogoutResponseDto,
 } from '../../docs/dto/response.dto';
@@ -31,13 +33,55 @@ import { MobileGoogleAuthDto } from '../../docs/dto/mobile-auth.dto';
 import { RefreshTokenDto } from '../../docs/dto/refresh-token.dto';
 
 interface AuthenticatedRequest extends Request {
-  user: GoogleUser & { userId?: string };
+  user: GoogleUser & { userId?: string; accessToken?: string };
 }
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  @Post('signup')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Sign up with email and password',
+    description:
+      'Creates a new user account with email and password. Returns JWT tokens on success.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Account created successfully',
+    type: AuthTokensResponseDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Email already in use',
+  })
+  async signup(@Body() dto: SignupDto) {
+    return this.authService.signup(dto);
+  }
+
+  @Post('login')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Log in with email and password',
+    description:
+      'Authenticates user with email and password. Returns JWT tokens on success.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    type: AuthTokensResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid email or password',
+  })
+  async login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
 
   @Post('google/mobile')
   @Public()
@@ -69,64 +113,33 @@ export class AuthController {
 
   @Get('google')
   @Public()
+  @UseGuards(GoogleAuthGuard)
   @ApiOperation({
     summary: 'Initiate Google OAuth',
     description:
       'Redirects user to Google for authentication. Requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to be configured.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Redirect message or configuration error',
-    type: GoogleAuthResponseDto,
-  })
-  @ApiResponse({
-    status: 503,
-    description: 'Google OAuth not configured',
-    type: AuthErrorResponseDto,
-  })
-  async googleAuth() {
-    if (!this.authService.isGoogleConfigured()) {
-      return {
-        statusCode: 503,
-        message:
-          'Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env',
-      };
-    }
-    return { message: 'Redirecting to Google...' };
-  }
+  async googleAuth() {}
 
   @Get('google/callback')
   @Public()
+  @UseGuards(GoogleAuthGuard)
   @ApiOperation({
     summary: 'Google OAuth Callback',
     description:
       'Handles the callback from Google after user authentication. Returns JWT token on success.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Authentication successful, returns user data and JWT token',
-    type: GoogleCallbackResponseDto,
-  })
-  @ApiResponse({
-    status: 503,
-    description: 'Google OAuth not configured',
-    type: AuthErrorResponseDto,
-  })
-  async googleAuthCallback(@Req() req: AuthenticatedRequest) {
-    if (!this.authService.isGoogleConfigured()) {
-      return {
-        statusCode: 503,
-        message: 'Google OAuth not configured',
-      };
-    }
+  async googleAuthCallback(
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ) {
     const user = req.user;
     const tokens = await this.authService.generateTokens(user);
     const dbUser = await this.authService.findOrCreateFromGoogle(user);
-    return {
-      user,
-      ...tokens,
-      onboarding: dbUser.needsOnboarding,
-    };
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(
+      `${frontendUrl}/auth/callback?access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}&onboarding=${dbUser.needsOnboarding}`,
+    );
   }
 
   @Post('refresh')
@@ -191,36 +204,6 @@ export class AuthController {
     return {
       googleConfigured: this.authService.isGoogleConfigured(),
       jwtConfigured: true,
-    };
-  }
-
-  @Get('me')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({
-    summary: 'Get Current User',
-    description:
-      'Returns the authenticated user information from the JWT token.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Current user information',
-    type: AuthUserResponseDto,
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Unauthorized - Invalid or missing JWT token',
-  })
-  async getCurrentUser(@Req() req: Request) {
-    const user = (req as any).user;
-    const dbUser = await this.authService.findOrCreateFromGoogle({
-      googleId: user?.googleId,
-      email: user?.email,
-      name: user?.name,
-    });
-    return {
-      userId: user?.userId,
-      email: user?.email,
-      name: user?.name,
-      onboarding: dbUser.needsOnboarding,
     };
   }
 }

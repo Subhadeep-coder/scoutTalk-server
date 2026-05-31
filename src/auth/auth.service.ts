@@ -1,23 +1,32 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
+import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
-import { RefreshToken } from '../database/entities';
+import { RefreshToken, User } from '../database/entities';
 import { randomUUID } from 'crypto';
 
 export interface JwtPayload {
   sub: string;
   email: string;
-  name: string;
+  firstName?: string;
+  lastName?: string;
+  googleId?: string;
 }
 
 export interface GoogleUser {
   googleId: string;
   email: string;
-  name: string;
+  firstName: string;
+  lastName?: string;
   picture?: string;
 }
 
@@ -31,6 +40,12 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly ACCESS_TOKEN_EXPIRY = 15 * 60;
   private readonly REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60;
+  private readonly ARGON2_CONFIG = {
+    type: argon2.argon2id,
+    memoryCost: 19456,
+    timeCost: 2,
+    parallelism: 1,
+  };
 
   constructor(
     private jwtService: JwtService,
@@ -40,36 +55,145 @@ export class AuthService {
     private refreshTokenRepository: Repository<RefreshToken>,
   ) {}
 
-  async generateTokens(googleUser: GoogleUser): Promise<AuthTokens> {
-    const user = await this.usersService.findOrCreateFromGoogle(googleUser);
-    const access_token = this.generateJwt(googleUser);
-    const refresh_token = await this.generateRefreshToken(user.id);
+  async signup(dto: {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+  }): Promise<AuthTokens & { user: Partial<User> }> {
+    const existing = await this.usersService.findByEmail(dto.email);
+    if (existing) {
+      throw new ConflictException('Email already in use');
+    }
+
+    const hashedPassword = await argon2.hash(dto.password, this.ARGON2_CONFIG);
+    const user = await this.usersService.createUser({
+      email: dto.email,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      password: hashedPassword,
+    });
+
+    const tokens = await this.generateTokenPair(
+      user.id,
+      user.email,
+      user.firstName,
+      user.lastName,
+    );
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName,
+        needsOnboarding: user.needsOnboarding,
+      },
+    };
+  }
+
+  async login(dto: {
+    email: string;
+    password: string;
+  }): Promise<AuthTokens & { user: Partial<User> }> {
+    const user = await this.usersService.findByEmailWithPassword(dto.email);
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const isPasswordValid = await argon2.verify(user.password, dto.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const tokens = await this.generateTokenPair(
+      user.id,
+      user.email,
+      user.firstName,
+      user.lastName,
+    );
+    const userResponse: Record<string, unknown> = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      displayName: user.displayName,
+    };
+    if (user.username) {
+      userResponse.username = user.username;
+    } else {
+      userResponse.needsOnboarding = true;
+    }
+    return {
+      ...tokens,
+      user: userResponse,
+    };
+  }
+
+  async generateTokenPair(
+    userId: string,
+    email: string,
+    firstName?: string,
+    lastName?: string,
+  ): Promise<AuthTokens> {
+    const access_token = this.generateAccessToken(
+      userId,
+      email,
+      firstName,
+      lastName,
+    );
+    const refresh_token = await this.createRefreshToken(userId);
     return { access_token, refresh_token };
   }
 
-  generateJwt(user: GoogleUser): string {
-    const payload: JwtPayload = {
-      sub: user.googleId,
-      email: user.email,
-      name: user.name,
-    };
-    return this.jwtService.sign(payload, {
-      expiresIn: this.ACCESS_TOKEN_EXPIRY,
-    });
-  }
-
-  generateTokenFromUser(userId: string, email: string, name: string): string {
+  generateAccessToken(
+    userId: string,
+    email: string,
+    firstName?: string,
+    lastName?: string,
+  ): string {
     const payload: JwtPayload = {
       sub: userId,
       email,
-      name,
+      firstName,
+      lastName,
     };
     return this.jwtService.sign(payload, {
       expiresIn: this.ACCESS_TOKEN_EXPIRY,
     });
   }
 
-  private async generateRefreshToken(userId: string): Promise<string> {
+  async generateTokens(googleUser: GoogleUser): Promise<AuthTokens> {
+    const user = await this.usersService.findOrCreateFromGoogle(googleUser);
+    const access_token = this.generateGoogleJwt(user, googleUser);
+    const refresh_token = await this.createRefreshToken(user.id);
+    return { access_token, refresh_token };
+  }
+
+  private generateGoogleJwt(user: User, googleUser: GoogleUser): string {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: googleUser.email,
+      firstName: googleUser.firstName,
+      lastName: googleUser.lastName,
+      googleId: googleUser.googleId,
+    };
+    return this.jwtService.sign(payload, {
+      expiresIn: this.ACCESS_TOKEN_EXPIRY,
+    });
+  }
+
+  generateTokenFromUser(
+    userId: string,
+    email: string,
+    firstName?: string,
+    lastName?: string,
+  ): string {
+    return this.generateAccessToken(userId, email, firstName, lastName);
+  }
+
+  private async createRefreshToken(userId: string): Promise<string> {
     const token = randomUUID();
     const expiresAt = new Date(Date.now() + this.REFRESH_TOKEN_EXPIRY * 1000);
 
@@ -85,9 +209,9 @@ export class AuthService {
 
   async validateRefreshToken(refreshToken: string): Promise<{
     userId: string;
-    googleId: string;
     email: string;
-    name: string;
+    firstName: string;
+    lastName: string;
   }> {
     const tokenRecord = await this.refreshTokenRepository.findOne({
       where: { token: refreshToken },
@@ -105,9 +229,9 @@ export class AuthService {
 
     return {
       userId: tokenRecord.userId,
-      googleId: tokenRecord.user.googleId,
       email: tokenRecord.user.email,
-      name: tokenRecord.user.displayName || '',
+      firstName: tokenRecord.user.firstName || '',
+      lastName: tokenRecord.user.lastName || '',
     };
   }
 
@@ -120,16 +244,15 @@ export class AuthService {
   ): Promise<{ access_token: string; refresh_token: string }> {
     const user = await this.validateRefreshToken(refreshToken);
 
-    const googleUser: GoogleUser = {
-      googleId: user.googleId,
-      email: user.email,
-      name: user.name,
-    };
-
     await this.revokeRefreshToken(refreshToken);
 
-    const newAccessToken = this.generateJwt(googleUser);
-    const newRefreshToken = await this.generateRefreshToken(user.userId);
+    const newAccessToken = this.generateAccessToken(
+      user.userId,
+      user.email,
+      user.firstName,
+      user.lastName,
+    );
+    const newRefreshToken = await this.createRefreshToken(user.userId);
 
     return {
       access_token: newAccessToken,
@@ -192,10 +315,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Google ID token');
     }
 
+    const fullName = payload.name || '';
+    const nameParts = fullName.split(' ');
     const googleUser: GoogleUser = {
       googleId: payload.sub,
       email: payload.email || '',
-      name: payload.name || '',
+      firstName: nameParts[0] || '',
+      lastName: nameParts.slice(1).join(' ') || undefined,
       picture: payload.picture,
     };
 

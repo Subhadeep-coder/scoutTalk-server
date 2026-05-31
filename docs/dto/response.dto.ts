@@ -1,16 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '../decorators/api-decorators';
 
-export class AuthUserResponseDto {
-  @ApiPropertyOptional()
-  userId?: string;
-
-  @ApiPropertyOptional()
-  email?: string;
-
-  @ApiPropertyOptional()
-  name?: string;
-}
-
 export class GoogleUserDto {
   @ApiProperty({ example: '123456789' })
   googleId: string;
@@ -18,8 +7,11 @@ export class GoogleUserDto {
   @ApiProperty({ example: 'user@example.com' })
   email: string;
 
-  @ApiProperty({ example: 'John Doe' })
-  name: string;
+  @ApiProperty({ example: 'John' })
+  firstName: string;
+
+  @ApiPropertyOptional({ example: 'Doe' })
+  lastName?: string;
 
   @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
   picture?: string;
@@ -45,7 +37,7 @@ export class GoogleCallbackResponseDto {
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
   access_token: string;
 
-  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
+  @ApiProperty({ example: 'd4489926-e2ca-49c6-98a1-ef5831a91c27' })
   refresh_token: string;
 
   @ApiProperty({ example: false })
@@ -70,21 +62,58 @@ export class JwtPayloadDto {
   @ApiProperty({ example: 'user@example.com' })
   email: string;
 
-  @ApiProperty({ example: 'John Doe' })
-  name: string;
+  @ApiProperty({ example: 'John' })
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Doe' })
+  lastName?: string;
 }
 
 export class RefreshTokenResponseDto {
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
   access_token: string;
 
-  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
+  @ApiProperty({ example: 'd4489926-e2ca-49c6-98a1-ef5831a91c27' })
   refresh_token: string;
 }
 
 export class LogoutResponseDto {
   @ApiProperty({ example: 'Logged out successfully' })
   message: string;
+}
+
+export class UserInfoDto {
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  id: string;
+
+  @ApiProperty({ example: 'user@example.com' })
+  email: string;
+
+  @ApiPropertyOptional({ example: 'John' })
+  firstName?: string;
+
+  @ApiPropertyOptional({ example: 'Doe' })
+  lastName?: string;
+
+  @ApiPropertyOptional({ example: 'John Doe' })
+  displayName?: string;
+
+  @ApiPropertyOptional({ example: 'john_doe' })
+  username?: string;
+
+  @ApiPropertyOptional({ example: true })
+  needsOnboarding?: boolean;
+}
+
+export class AuthTokensResponseDto {
+  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
+  access_token: string;
+
+  @ApiProperty({ example: 'd4489926-e2ca-49c6-98a1-ef5831a91c27' })
+  refresh_token: string;
+
+  @ApiProperty({ type: UserInfoDto })
+  user: UserInfoDto;
 }
 
 export class HelloResponseDto {
