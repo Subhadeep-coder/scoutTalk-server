@@ -37,6 +37,9 @@ export class User {
   @Column('text', { nullable: true })
   avatar?: string;
 
+  @Column('boolean', { default: false })
+  emailVerified: boolean;
+
   @Column('boolean', { default: true })
   needsOnboarding: boolean;
 

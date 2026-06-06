@@ -2,6 +2,8 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  NotFoundException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,7 +13,13 @@ import { Repository } from 'typeorm';
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
-import { RefreshToken, User } from '../database/entities';
+import {
+  RefreshToken,
+  PasswordResetToken,
+  EmailVerificationToken,
+  User,
+} from '../database/entities';
+import { MailService } from '../mail/mail.service';
 import { randomUUID } from 'crypto';
 
 export interface JwtPayload {
@@ -40,6 +48,8 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly ACCESS_TOKEN_EXPIRY = 15 * 60;
   private readonly REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60;
+  private readonly RESET_TOKEN_EXPIRY = 60 * 60; // 1 hour
+  private readonly VERIFICATION_TOKEN_EXPIRY = 15 * 60; // 15 minutes
   private readonly ARGON2_CONFIG = {
     type: argon2.argon2id,
     memoryCost: 19456,
@@ -51,8 +61,13 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService<Record<string, unknown>>,
     private usersService: UsersService,
+    private mailService: MailService,
     @InjectRepository(RefreshToken)
     private refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(PasswordResetToken)
+    private passwordResetTokenRepository: Repository<PasswordResetToken>,
+    @InjectRepository(EmailVerificationToken)
+    private emailVerificationTokenRepository: Repository<EmailVerificationToken>,
   ) {}
 
   async signup(dto: {
@@ -60,10 +75,40 @@ export class AuthService {
     password: string;
     firstName?: string;
     lastName?: string;
-  }): Promise<AuthTokens & { user: Partial<User> }> {
+  }): Promise<{ message: string }> {
     const existing = await this.usersService.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictException('Email already in use');
+      if (existing.emailVerified) {
+        throw new ConflictException('Email already in use');
+      }
+      const hashedPassword = await argon2.hash(
+        dto.password,
+        this.ARGON2_CONFIG,
+      );
+      await this.usersService.updatePassword(existing.id, hashedPassword);
+
+      if (
+        dto.firstName !== undefined &&
+        dto.firstName !== existing.firstName
+      ) {
+        await this.usersService.updateNames(existing.id, {
+          firstName: dto.firstName,
+        });
+      }
+      if (
+        dto.lastName !== undefined &&
+        dto.lastName !== existing.lastName
+      ) {
+        await this.usersService.updateNames(existing.id, {
+          lastName: dto.lastName,
+        });
+      }
+
+      await this.sendVerificationEmail(existing.id, dto.email);
+      return {
+        message:
+          'A verification email has been sent to this email address.',
+      };
     }
 
     const hashedPassword = await argon2.hash(dto.password, this.ARGON2_CONFIG);
@@ -74,23 +119,32 @@ export class AuthService {
       password: hashedPassword,
     });
 
-    const tokens = await this.generateTokenPair(
-      user.id,
-      user.email,
-      user.firstName,
-      user.lastName,
-    );
+    await this.sendVerificationEmail(user.id, dto.email);
+
     return {
-      ...tokens,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        displayName: user.displayName,
-        needsOnboarding: user.needsOnboarding,
-      },
+      message:
+        'Account created. Please check your email to verify your account.',
     };
+  }
+
+  private async sendVerificationEmail(
+    userId: string,
+    email: string,
+  ): Promise<void> {
+    const token = randomUUID();
+    const expiresAt = new Date(
+      Date.now() + this.VERIFICATION_TOKEN_EXPIRY * 1000,
+    );
+
+    await this.emailVerificationTokenRepository.save(
+      this.emailVerificationTokenRepository.create({
+        userId,
+        token,
+        expiresAt,
+      }),
+    );
+
+    await this.mailService.sendEmailVerificationEmail(email, token);
   }
 
   async login(dto: {
@@ -100,6 +154,12 @@ export class AuthService {
     const user = await this.usersService.findByEmailWithPassword(dto.email);
     if (!user || !user.password) {
       throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException(
+        'Please verify your email before logging in.',
+      );
     }
 
     const isPasswordValid = await argon2.verify(user.password, dto.password);
@@ -335,5 +395,113 @@ export class AuthService {
 
   async findOrCreateFromGoogle(googleUser: GoogleUser) {
     return this.usersService.findOrCreateFromGoogle(googleUser);
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findByEmailWithPassword(email);
+    if (!user) {
+      throw new NotFoundException('No account found with this email');
+    }
+    if (!user.password) {
+      throw new BadRequestException(
+        'This account uses Google sign-in. Password reset is not available.',
+      );
+    }
+
+    const token = randomUUID();
+    const expiresAt = new Date(Date.now() + this.RESET_TOKEN_EXPIRY * 1000);
+
+    await this.passwordResetTokenRepository.save(
+      this.passwordResetTokenRepository.create({
+        userId: user.id,
+        token,
+        expiresAt,
+      }),
+    );
+
+    await this.mailService.sendPasswordResetEmail(email, token);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const resetToken = await this.passwordResetTokenRepository.findOne({
+      where: { token, used: false },
+    });
+
+    if (!resetToken) {
+      throw new BadRequestException('Invalid or already used reset token');
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Reset token has expired');
+    }
+
+    const hashedPassword = await argon2.hash(newPassword, this.ARGON2_CONFIG);
+
+    await this.usersService.updatePassword(resetToken.userId, hashedPassword);
+
+    resetToken.used = true;
+    await this.passwordResetTokenRepository.save(resetToken);
+  }
+
+  async verifyEmail(
+    token: string,
+  ): Promise<AuthTokens & { user: Partial<User> }> {
+    const verificationToken =
+      await this.emailVerificationTokenRepository.findOne({
+        where: { token, used: false },
+      });
+
+    if (!verificationToken) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    if (verificationToken.expiresAt < new Date()) {
+      throw new BadRequestException('Verification token has expired');
+    }
+
+    await this.usersService.updateEmailVerified(verificationToken.userId, true);
+
+    verificationToken.used = true;
+    await this.emailVerificationTokenRepository.save(verificationToken);
+
+    const user = await this.usersService.findById(verificationToken.userId);
+
+    const tokens = await this.generateTokenPair(
+      user.id,
+      user.email,
+      user.firstName,
+      user.lastName,
+    );
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName,
+        needsOnboarding: user.needsOnboarding,
+      },
+    };
+  }
+
+  async resendVerification(email: string): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return {
+        message: 'If an account exists, a verification email has been sent.',
+      };
+    }
+
+    if (user.emailVerified) {
+      return { message: 'Email is already verified.' };
+    }
+
+    await this.sendVerificationEmail(user.id, email);
+
+    return {
+      message: 'If an account exists, a verification email has been sent.',
+    };
   }
 }

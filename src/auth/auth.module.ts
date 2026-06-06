@@ -15,12 +15,22 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { OnboardingGuard } from './guards/onboarding.guard';
 import { JwtConfig } from '../config/interfaces/config.interface';
 import { UsersModule } from '../users/users.module';
-import { RefreshToken } from '../database/entities';
+import {
+  RefreshToken,
+  PasswordResetToken,
+  EmailVerificationToken,
+} from '../database/entities';
+import { MailModule } from '../mail/mail.module';
 
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([RefreshToken]),
+    TypeOrmModule.forFeature([
+      RefreshToken,
+      PasswordResetToken,
+      EmailVerificationToken,
+    ]),
+    MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

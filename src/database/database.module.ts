@@ -1,7 +1,12 @@
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { User, RefreshToken } from './entities';
+import {
+  User,
+  RefreshToken,
+  PasswordResetToken,
+  EmailVerificationToken,
+} from './entities';
 
 @Global()
 @Module({
@@ -16,12 +21,22 @@ import { User, RefreshToken } from './entities';
         username: configService.get<string>('DATABASE_USER', 'postgres'),
         password: configService.get<string>('DATABASE_PASSWORD', ''),
         database: configService.get<string>('DATABASE_NAME', 'scoutTalk'),
-        entities: [User, RefreshToken],
+        entities: [
+          User,
+          RefreshToken,
+          PasswordResetToken,
+          EmailVerificationToken,
+        ],
         synchronize: configService.get<boolean>('DATABASE_SYNCHRONIZE', false),
         logging: configService.get<boolean>('DATABASE_LOGGING', false),
       }),
     }),
-    TypeOrmModule.forFeature([User, RefreshToken]),
+    TypeOrmModule.forFeature([
+      User,
+      RefreshToken,
+      PasswordResetToken,
+      EmailVerificationToken,
+    ]),
   ],
   exports: [TypeOrmModule],
 })

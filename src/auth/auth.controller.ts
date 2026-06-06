@@ -5,9 +5,9 @@ import {
   Body,
   Req,
   Res,
+  UseGuards,
   HttpCode,
   HttpStatus,
-  UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import {
@@ -31,6 +31,14 @@ import {
 } from '../../docs/dto/response.dto';
 import { MobileGoogleAuthDto } from '../../docs/dto/mobile-auth.dto';
 import { RefreshTokenDto } from '../../docs/dto/refresh-token.dto';
+import {
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from '../../docs/dto/password-reset.dto';
+import {
+  VerifyEmailDto,
+  ResendVerificationDto,
+} from '../../docs/dto/email-verification.dto';
 
 interface AuthenticatedRequest extends Request {
   user: GoogleUser & { userId?: string; accessToken?: string };
@@ -40,27 +48,6 @@ interface AuthenticatedRequest extends Request {
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
-
-  @Post('signup')
-  @Public()
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'Sign up with email and password',
-    description:
-      'Creates a new user account with email and password. Returns JWT tokens on success.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Account created successfully',
-    type: AuthTokensResponseDto,
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Email already in use',
-  })
-  async signup(@Body() dto: SignupDto) {
-    return this.authService.signup(dto);
-  }
 
   @Post('login')
   @Public()
@@ -77,7 +64,7 @@ export class AuthController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid email or password',
+    description: 'Invalid email or password, or email not yet verified',
   })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
@@ -205,5 +192,147 @@ export class AuthController {
       googleConfigured: this.authService.isGoogleConfigured(),
       jwtConfigured: true,
     };
+  }
+
+  @Post('signup')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Sign up with email and password',
+    description: 'Creates a new user account and sends a verification email.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Account created, verification email sent',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example:
+            'Account created. Please check your email to verify your account.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error (invalid email, password too short, etc.)',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Email already in use (account is already verified)',
+  })
+  async signup(@Body() dto: SignupDto) {
+    return this.authService.signup(dto);
+  }
+
+  @Post('verify-email')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify email address',
+    description:
+      'Validates the email verification token, marks the email as verified, and returns JWT tokens.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified successfully',
+    type: AuthTokensResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired verification token',
+  })
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.token);
+  }
+
+  @Post('resend-verification')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Resend verification email',
+    description:
+      'Resends the email verification link. Always returns 200 to prevent email enumeration.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification email sent if account exists',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'If an account exists, a verification email has been sent.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error (invalid email)',
+  })
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerification(dto.email);
+  }
+
+  @Post('forgot-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Request password reset',
+    description:
+      'Sends a password reset email with a time-limited token if the email exists.',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'If the email exists, a reset link has been sent (always returns 200 to prevent email enumeration)',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'If an account exists, a password reset link has been sent.',
+        },
+      },
+    },
+  })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(dto.email).catch(() => {
+      // Silently ignore to prevent email enumeration
+    });
+    return {
+      message: 'If an account exists, a password reset link has been sent.',
+    };
+  }
+
+  @Post('reset-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reset password with token',
+    description:
+      'Validates the reset token and updates the password. Token expires after 1 hour.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Password reset successfully' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid, expired, or already used reset token; or validation error',
+  })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto.token, dto.password);
+    return { message: 'Password reset successfully' };
   }
 }

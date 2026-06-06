@@ -42,6 +42,7 @@ export class UsersService {
         'displayName',
         'avatar',
         'needsOnboarding',
+        'emailVerified',
         'username',
         'createdAt',
         'updatedAt',
@@ -80,6 +81,7 @@ export class UsersService {
       lastName: data.lastName,
       avatar: data.avatar,
       password: data.password,
+      emailVerified: !!data.googleId,
       needsOnboarding: true,
     });
     return this.userRepository.save(user);
@@ -113,6 +115,26 @@ export class UsersService {
     });
 
     return this.findById(userId);
+  }
+
+  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
+    await this.userRepository.update(userId, { password: hashedPassword });
+  }
+
+  async updateNames(
+    userId: string,
+    data: { firstName?: string; lastName?: string },
+  ): Promise<void> {
+    const updates: Record<string, string | undefined> = {};
+    if (data.firstName !== undefined) updates.firstName = data.firstName;
+    if (data.lastName !== undefined) updates.lastName = data.lastName;
+    if (Object.keys(updates).length > 0) {
+      await this.userRepository.update(userId, updates);
+    }
+  }
+
+  async updateEmailVerified(userId: string, verified: boolean): Promise<void> {
+    await this.userRepository.update(userId, { emailVerified: verified });
   }
 
   async findOrCreateFromGoogle(googleUser: {
