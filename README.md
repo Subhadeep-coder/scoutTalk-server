@@ -1,178 +1,56 @@
 # ScoutTalk Backend
 
-A NestJS backend application for ScoutTalk - a Discord clone with policy-based access control.
+A NestJS backend application for ScoutTalk — a Discord clone with policy-based access control.
 
 ## Tech Stack
 
 - **Framework**: NestJS
 - **Language**: TypeScript
 - **Package Manager**: pnpm
-- **Authentication**: PassportJS with Google OAuth 2.0 & JWT
-- **Real-time**: Livekit for voice channels
-- **Database**: (To be decided - PostgreSQL/MySQL recommended)
+- **Database**: PostgreSQL + TypeORM
+- **Authentication**: Email/password (argon2) + Google OAuth 2.0 + JWT (access + refresh tokens)
+- **Email**: Nodemailer with EJS templates
+- **Real-time (planned)**: LiveKit for voice/video, Socket.IO for messaging
+- **Docs**: Swagger at `/api/docs`
 
 ## Project Structure
 
 ```
-backend/
-├── src/
-│   ├── auth/                 # Authentication module
-│   │   ├── decorators/       # Custom decorators (e.g., @Public)
-│   │   ├── guards/           # Auth guards (e.g., JwtAuthGuard)
-│   │   ├── strategies/       # Passport strategies (Google, JWT)
-│   │   ├── auth.controller.ts
-│   │   ├── auth.module.ts
-│   │   └── auth.service.ts
-│   ├── config/              # Configuration module
-│   │   ├── interfaces/       # TypeScript interfaces
-│   │   ├── app.config.ts
-│   │   ├── google.config.ts
-│   │   └── jwt.config.ts
-│   ├── app.controller.ts
-│   ├── app.module.ts
-│   └── main.ts
-├── .env.example             # Environment variables template
-└── package.json
+src/
+├── auth/                   # Authentication module
+│   ├── decorators/         # @Public, @SkipOnboardingCheck
+│   ├── guards/             # JwtAuthGuard, OnboardingGuard, GoogleAuthGuard
+│   ├── strategies/         # Passport strategies (JWT, Local, Google)
+│   ├── dto/                # SignupDto, LoginDto
+│   ├── auth.controller.ts  # 14 auth endpoints
+│   ├── auth.module.ts
+│   └── auth.service.ts
+├── users/                  # User profile & onboarding
+│   ├── dto/                # UpdateUsernameDto, UpdateProfileDto
+│   ├── users.controller.ts
+│   ├── users.module.ts
+│   └── users.service.ts
+├── mail/                   # Email sending
+│   ├── templates/          # email-verification.ejs, password-reset.ejs
+│   ├── mail.module.ts
+│   └── mail.service.ts
+├── database/               # TypeORM setup
+│   ├── entities/
+│   │   ├── user.entity.ts
+│   │   ├── refresh-token.entity.ts
+│   │   ├── email-verification-token.entity.ts
+│   │   └── password-reset-token.entity.ts
+│   ├── database.module.ts
+│   └── index.ts
+├── config/                 # @nestjs/config namespaces
+│   ├── interfaces/
+│   ├── app.config.ts
+│   ├── google.config.ts
+│   └── jwt.config.ts
+├── app.controller.ts
+├── app.module.ts
+└── main.ts
 ```
-
----
-
-## TODO - Project Roadmap
-
-### Phase 1: Core Infrastructure
-
-- [ ] Setup database (PostgreSQL with TypeORM or Prisma)
-- [ ] Setup database migrations
-- [ ] Create base entities (User, Server, Channel, Role, Message)
-- [ ] Implement database seeders for development
-
-### Phase 2: User Management
-
-- [ ] User profile management (update name, avatar)
-- [ ] User preferences settings
-- [ ] User search functionality
-- [ ] User relationship system (friends/block)
-
-### Phase 3: Server (Guild) Management
-
-- [ ] Create server
-- [ ] Edit server details (name, icon)
-- [ ] Delete server
-- [ ] Server discovery/public servers
-- [ ] Server invite system with unique invite codes
-- [ ] Server member management
-
-### Phase 4: Channel Management
-
-- [ ] Text channel CRUD
-- [ ] Voice channel CRUD
-- [ ] Category management (organize channels)
-- [ ] Channel permissions per-channel
-- [ ] Channel pins/bookmarks
-
-### Phase 5: Role & Permission System (RBAC)
-
-#### Permission Types
-
-- [ ] View Channel
-- [ ] Manage Channel
-- [ ] Send Messages
-- [ ] Manage Messages
-- [ ] Embed Links
-- [ ] Attach Files
-- [ ] Read Message History
-- [ ] Send TTS Messages
-- [ ] Use Emojis
-- [ ] Add Reactions
-- [ ] Use Slash Commands
-- [ ] Manage Roles
-- [ ] Manage Members
-- [ ] Kick Members
-- [ ] Ban Members
-- [ ] Mute Members
-- [ ] Deafen Members
-- [ ] Move Members
-- [ ] Voice Connect
-- [ ] Voice Speak
-- [ ] Voice Video
-- [ ] Administrator (all permissions)
-- [ ] Owner (irreversible actions)
-
-#### Role System
-
-- [ ] Create custom roles with color
-- [ ] Role hierarchy (higher roles override lower)
-- [ ] Assign roles to members
-- [ ] Role permissions management
-
-#### Permission Override System
-
-- [ ] Server-level default permissions
-- [ ] Channel-level permission overrides
-- [ ] Role-based permission inheritance
-- [ ] User-specific permission overrides
-- [ ] Permission priority: User > Channel Role > Server Role
-- [ ] @everyone role with base permissions
-
-### Phase 6: Message System
-
-- [ ] Send text messages
-- [ ] Edit messages
-- [ ] Delete messages
-- [ ] Message threading
-- [ ] Message reactions
-- [ ] Message embeds (rich formatting)
-- [ ] Message search
-- [ ] Message history pagination
-- [ ] Pinned messages
-- [ ] Message status (edited, deleted indicators)
-
-### Phase 7: Real-time Communication (Livekit)
-
-- [ ] Setup Livekit server integration
-- [ ] Voice channel connection
-- [ ] Voice channel disconnect
-- [ ] Voice channel mute/unmute
-- [ ] Voice channel deafen/undeafen
-- [ ] Voice channel video on/off
-- [ ] Screen sharing
-- [ ] Voice activity detection
-- [ ] Join/leave notifications
-- [ ] Multiple voice channels support
-
-### Phase 8: Real-time Events (WebSocket/Gateway)
-
-- [ ] WebSocket gateway setup
-- [ ] Connection authentication
-- [ ] Real-time message updates
-- [ ] Real-time channel updates
-- [ ] Real-time user status (online/away/offline)
-- [ ] Real-time typing indicators
-- [ ] Real-time voice state updates
-- [ ] Real-time presence updates
-
-### Phase 9: Additional Features
-
-- [ ] Direct messages (DM)
-- [ ] Group direct messages
-- [ ] Server emotes (custom emoji)
-- [ ] Server stickers
-- [ ] Audit log
-- [ ] Server templates
-- [ ] User activity status (game, custom status)
-- [ ] Notification settings per-channel
-
-### Phase 10: Security & Performance
-
-- [ ] Rate limiting
-- [ ] Input sanitization
-- [ ] SQL injection prevention
-- [ ] WebSocket security
-- [ ] Caching strategy (Redis)
-- [ ] Database indexing optimization
-- [ ] API pagination & filtering
-
----
 
 ## Getting Started
 
@@ -180,7 +58,7 @@ backend/
 
 - Node.js >= 18
 - pnpm >= 8
-- PostgreSQL >= 14 (for production)
+- PostgreSQL >= 14
 
 ### Installation
 
@@ -199,79 +77,105 @@ cp .env.example .env
 Required environment variables:
 
 ```env
+# Application
+NODE_ENV=development
+PORT=5000
+FRONTEND_URL=http://localhost:3000
+
+# Database (PostgreSQL)
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_USER=postgres
+DATABASE_PASSWORD=your_password_here
+DATABASE_NAME=scoutTalk
+DATABASE_SYNCHRONIZE=false
+DATABASE_LOGGING=false
+
 # Google OAuth
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CLIENT_ID_ANDROID=your_google_client_id_android
 
 # JWT
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-JWT_EXPIRES_IN=7d
+JWT_SECRET=your_jwt_secret_key_here
 
-# Application
-PORT=3000
-NODE_ENV=development
-
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/scouttalk
-
-# Livekit
-LIVEKIT_API_KEY=your-livekit-api-key
-LIVEKIT_API_SECRET=your-livekit-api-secret
-LIVEKIT_URL=wss://your-livekit-server.com
+# Mail (SMTP)
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USER=your@email.com
+MAIL_PASS=your-password
+MAIL_FROM=noreply@scouttalk.com
 ```
 
 ### Google OAuth Setup
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing one
-3. Enable Google+ API
-4. Go to Credentials > OAuth Client ID
-5. Set Application type to Web application
-6. Add authorized redirect URI: `http://localhost:3000/auth/google/callback`
-7. Copy Client ID and Client Secret to `.env`
+3. Go to **Credentials** > **OAuth Client ID**
+4. Set Application type to **Web application**
+5. Add authorized redirect URI: `http://localhost:PORT/auth/google/callback`
+6. Copy Client ID and Client Secret to `.env`
 
 ### Running the Application
 
 ```bash
-# Development
-pnpm start:dev
-
-# Production
-pnpm start:prod
-
-# Build
-pnpm build
+pnpm start:dev     # Hot reload
+pnpm start:prod    # Production
+pnpm build         # Build to dist/
 ```
 
 ## API Endpoints
 
-### Authentication
+### Authentication (`/auth`)
 
-| Method | Endpoint                | Description                     | Auth Required |
-| ------ | ----------------------- | ------------------------------- | ------------- |
-| GET    | `/auth/google`          | Initiate Google OAuth flow      | No            |
-| GET    | `/auth/google/callback` | Google OAuth callback           | No            |
-| GET    | `/auth/status`          | Check auth configuration status | No            |
-| GET    | `/auth/me`              | Get current user info           | Yes           |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/auth/signup` | Public | Register with email & password (sends verification email) |
+| POST | `/auth/login` | Public | Login with email & password (returns JWT tokens) |
+| POST | `/auth/verify-email` | Public | Verify email with token (returns JWT tokens) |
+| POST | `/auth/resend-verification` | Public | Resend verification email |
+| POST | `/auth/forgot-password` | Public | Send password reset email |
+| POST | `/auth/reset-password` | Public | Reset password with token |
+| POST | `/auth/refresh` | Public | Exchange refresh token for new token pair |
+| POST | `/auth/logout` | Public | Revoke refresh token |
+| GET | `/auth/google` | Public | Initiate Google OAuth flow |
+| GET | `/auth/google/callback` | Public | Google OAuth callback (redirect) |
+| POST | `/auth/google/mobile` | Public | Google ID token validation (Android/iOS) |
+| GET | `/auth/status` | Public | Check auth configuration status |
 
-### Health Check
+### Users (`/users`)
 
-| Method | Endpoint | Description              |
-| ------ | -------- | ------------------------ |
-| GET    | `/`      | Application health check |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/users/me` | JWT | Get current user profile |
+| GET | `/users/me/onboarding-status` | JWT | Check onboarding status |
+| POST | `/users/me/username` | JWT | Set username (completes onboarding) |
+| PUT | `/users/me` | JWT | Update profile (display name, avatar) |
+| GET | `/users/username/:username` | Public | Check username availability |
+
+### Health
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/` | Public | Health check |
+| GET | `/api/docs` | Public | Swagger documentation |
 
 ## Authentication Flow
 
-1. User navigates to `/auth/google`
-2. Redirected to Google for authentication
-3. After successful auth, callback receives user profile
-4. JWT token generated and returned
-5. Token used in `Authorization: Bearer <token>` header
+### Email / Password
+1. `POST /auth/signup` — creates unverified account, sends verification email
+2. User clicks link → `POST /auth/verify-email` — marks email verified, returns JWT tokens
+3. `POST /auth/login` — returns `{ access_token, refresh_token, user }`
+4. Use `Authorization: Bearer <access_token>` for authenticated requests
+5. When access token expires, use `POST /auth/refresh` with `{ refresh_token }` to get a new pair
 
-## Protected Routes
+### Google OAuth
+1. Web: `GET /auth/google` → redirects to Google → callback at `/auth/google/callback`
+2. Mobile: `POST /auth/google/mobile` with `{ idToken }` → validates with Google
 
-By default, all routes require authentication. Use `@Public()` decorator to make routes public:
+## Global Guards
+
+All routes require JWT by default. Use `@Public()` to opt out:
 
 ```typescript
 @Get('public-endpoint')
@@ -281,17 +185,48 @@ async publicRoute() {
 }
 ```
 
+Un-onboarded users (no username) are blocked except on `/auth/*` and routes with `@SkipOnboardingCheck()`.
+
+## Swagger Docs
+
+Interactive API documentation at `/api/docs` when the server is running.
+
 ## Scripts
 
 ```bash
 pnpm build         # Build for production
-pnpm start         # Start production server
-pnpm start:dev     # Start in development mode with hot reload
-pnpm lint          # Run ESLint
-pnpm test          # Run unit tests
-pnpm test:e2e      # Run end-to-end tests
-pnpm test:cov      # Run tests with coverage
+pnpm start:dev     # Development with hot reload
+pnpm start:prod    # Production
+pnpm lint          # ESLint (with --fix)
+pnpm format        # Prettier
+pnpm test          # Unit tests
+pnpm test:e2e      # E2E tests
+pnpm test:cov      # Coverage
 ```
+
+## TODO — Project Roadmap
+
+### Phase 1: Core Infrastructure
+
+- [x] Setup database (PostgreSQL with TypeORM)
+- [ ] Setup database migrations (currently using `synchronize`)
+- [ ] Create base entities (User done; Server, Channel, Role, Message upcoming)
+- [ ] Implement database seeders for development
+
+### Phase 2: User Management
+
+- [x] Email/password registration with email verification
+- [x] Google OAuth login (web + mobile)
+- [x] JWT access + refresh token flow
+- [x] User profile management (name, avatar, display name)
+- [x] Forgot / reset password
+- [x] Username setup & onboarding flow
+- [ ] User preferences settings
+- [ ] User relationship system (friends/block)
+
+### Phase 3–10
+
+⬜ **Not started** — Servers, channels, messaging, roles, LiveKit voice, WebSocket gateway, and additional features.
 
 ## License
 
