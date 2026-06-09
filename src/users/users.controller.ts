@@ -10,7 +10,10 @@ import {
   HttpStatus,
   UseGuards,
   NotFoundException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import {
   ApiTags,
@@ -19,11 +22,14 @@ import {
   ApiBearerAuth,
   ApiUnauthorizedResponse,
   ApiOkResponse,
+  ApiConsumes,
+  ApiBody,
 } from '../../docs';
 import { Public } from '../auth/decorators/public.decorator';
 import { SkipOnboardingCheck } from '../auth/decorators/skip-onboarding.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import {
   UpdateUsernameDto,
   UpdateProfileDto,
@@ -33,7 +39,10 @@ import {
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    private cloudinary: CloudinaryService,
+  ) {}
 
   @Get('me')
   @SkipOnboardingCheck()
@@ -199,6 +208,45 @@ export class UsersController {
     }
 
     return this.usersService.updateProfile(dbUser.id, dto);
+  }
+
+  @Post('me/avatar')
+  @ApiBearerAuth('JWT-auth')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload profile avatar' })
+  @ApiResponse({ status: 200, description: 'Avatar uploaded' })
+  async uploadAvatar(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const user = (req as any).user;
+    const userId = user.userId || (user.googleId ? undefined : undefined);
+
+    const dbUser = user.userId
+      ? await this.usersService.findById(user.userId).catch(() => null)
+      : user.googleId
+        ? await this.usersService.findByGoogleId(user.googleId)
+        : null;
+
+    if (!dbUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const result = await this.cloudinary.uploadFromBuffer(file.buffer, {
+      folder: `users/${dbUser.id}`,
+      publicId: 'avatar',
+    });
+
+    return this.usersService.updateProfile(dbUser.id, { avatar: result.url });
   }
 
   @Get('username/:username')

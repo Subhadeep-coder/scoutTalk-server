@@ -6,19 +6,27 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { OnboardingGuard } from './auth/guards/onboarding.guard';
-import { appConfig, googleConfig, jwtConfig } from './config';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { appConfig, cloudinaryConfig, googleConfig, jwtConfig } from './config';
 import { DatabaseModule } from './database';
 import { UsersModule } from './users/users.module';
+import { ServersModule } from './servers/servers.module';
+import { ChannelsModule } from './channels/channels.module';
+import { MembersModule } from './members/members.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, googleConfig, jwtConfig],
+      load: [appConfig, cloudinaryConfig, googleConfig, jwtConfig],
     }),
     DatabaseModule,
     UsersModule,
     AuthModule,
+    CloudinaryModule,
+    ServersModule,
+    ChannelsModule,
+    MembersModule,
   ],
   controllers: [AppController],
   providers: [

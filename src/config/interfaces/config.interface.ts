@@ -13,3 +13,9 @@ export interface AppConfig {
   port: number;
   nodeEnv: string;
 }
+
+export interface CloudinaryConfig {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+}

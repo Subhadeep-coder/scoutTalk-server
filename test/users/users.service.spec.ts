@@ -19,6 +19,7 @@ describe('UsersService', () => {
     displayName: 'Test User',
     avatar: 'https://example.com/avatar.png',
     needsOnboarding: false,
+    emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
     refreshTokens: [],

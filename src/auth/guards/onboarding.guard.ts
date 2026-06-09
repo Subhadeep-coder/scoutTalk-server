@@ -32,13 +32,12 @@ export class OnboardingGuard implements CanActivate {
       return true;
     }
 
-    if (user.googleId) {
-      const dbUser = await this.usersService.findByGoogleId(user.googleId);
-      if (!dbUser || dbUser.needsOnboarding) {
-        throw new ForbiddenException(
-          'Please complete onboarding to access this resource. Set a username first.',
-        );
-      }
+    const dbUser = await this.usersService.findById(user.userId);
+
+    if (dbUser.needsOnboarding) {
+      throw new ForbiddenException(
+        'Please complete onboarding to access this resource. Set a username first.',
+      );
     }
 
     return true;

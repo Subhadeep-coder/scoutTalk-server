@@ -2,3 +2,8 @@ export { User } from './user.entity';
 export { RefreshToken } from './refresh-token.entity';
 export { PasswordResetToken } from './password-reset-token.entity';
 export { EmailVerificationToken } from './email-verification-token.entity';
+export { Server } from './server.entity';
+export { Category } from './category.entity';
+export { Channel } from './channel.entity';
+export { ServerMember } from './server-member.entity';
+export { Invite } from './invite.entity';

@@ -17,3 +17,4 @@ export const ApiBody = require('@nestjs/swagger').ApiBody;
 export const ApiQuery = require('@nestjs/swagger').ApiQuery;
 export const ApiParam = require('@nestjs/swagger').ApiParam;
 export const ApiHeader = require('@nestjs/swagger').ApiHeader;
+export const ApiConsumes = require('@nestjs/swagger').ApiConsumes;
