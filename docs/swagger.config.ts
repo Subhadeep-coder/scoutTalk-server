@@ -17,6 +17,9 @@ export const swaggerConfig = new DocumentBuilder()
   )
   .addTag('auth', 'Authentication endpoints')
   .addTag('users', 'User management endpoints')
+  .addTag('servers', 'Server management endpoints')
+  .addTag('channels', 'Channel and category management endpoints')
+  .addTag('members', 'Server member and invite management endpoints')
   .addTag('health', 'Health check endpoints')
   .build();
 

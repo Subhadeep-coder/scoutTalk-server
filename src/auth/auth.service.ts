@@ -87,18 +87,12 @@ export class AuthService {
       );
       await this.usersService.updatePassword(existing.id, hashedPassword);
 
-      if (
-        dto.firstName !== undefined &&
-        dto.firstName !== existing.firstName
-      ) {
+      if (dto.firstName !== undefined && dto.firstName !== existing.firstName) {
         await this.usersService.updateNames(existing.id, {
           firstName: dto.firstName,
         });
       }
-      if (
-        dto.lastName !== undefined &&
-        dto.lastName !== existing.lastName
-      ) {
+      if (dto.lastName !== undefined && dto.lastName !== existing.lastName) {
         await this.usersService.updateNames(existing.id, {
           lastName: dto.lastName,
         });
@@ -106,8 +100,7 @@ export class AuthService {
 
       await this.sendVerificationEmail(existing.id, dto.email);
       return {
-        message:
-          'A verification email has been sent to this email address.',
+        message: 'A verification email has been sent to this email address.',
       };
     }
 

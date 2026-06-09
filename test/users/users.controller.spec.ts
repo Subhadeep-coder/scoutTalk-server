@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from '../../src/users/users.controller';
 import { UsersService } from '../../src/users/users.service';
+import { CloudinaryService } from '../../src/cloudinary/cloudinary.service';
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -14,6 +15,7 @@ describe('UsersController', () => {
     displayName: 'Test User',
     avatar: 'https://example.com/avatar.png',
     needsOnboarding: false,
+    emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
     refreshTokens: [],
@@ -40,7 +42,10 @@ describe('UsersController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [{ provide: UsersService, useValue: mockUsersService }],
+      providers: [
+        { provide: UsersService, useValue: mockUsersService },
+        { provide: CloudinaryService, useValue: { uploadFromBuffer: jest.fn() } },
+      ],
     }).compile();
 
     controller = module.get<UsersController>(UsersController);

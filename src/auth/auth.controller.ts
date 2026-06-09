@@ -18,7 +18,6 @@ import {
   ApiUnauthorizedResponse,
 } from '../../docs';
 import { Public } from './decorators/public.decorator';
-import { SkipOnboardingCheck } from './decorators/skip-onboarding.decorator';
 import { AuthService, GoogleUser } from './auth.service';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { SignupDto, LoginDto } from './dto/auth.dto';
@@ -155,7 +154,6 @@ export class AuthController {
 
   @Post('logout')
   @Public()
-  @SkipOnboardingCheck()
   @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
