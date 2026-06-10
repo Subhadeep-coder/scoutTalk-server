@@ -7,12 +7,14 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { OnboardingGuard } from './auth/guards/onboarding.guard';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { WebsocketModule } from './websocket/websocket.module';
 import { appConfig, cloudinaryConfig, googleConfig, jwtConfig } from './config';
 import { DatabaseModule } from './database';
 import { UsersModule } from './users/users.module';
 import { ServersModule } from './servers/servers.module';
 import { ChannelsModule } from './channels/channels.module';
 import { MembersModule } from './members/members.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -24,9 +26,11 @@ import { MembersModule } from './members/members.module';
     UsersModule,
     AuthModule,
     CloudinaryModule,
+    WebsocketModule,
     ServersModule,
     ChannelsModule,
     MembersModule,
+    MessagesModule,
   ],
   controllers: [AppController],
   providers: [

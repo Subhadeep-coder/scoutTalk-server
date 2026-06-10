@@ -7,3 +7,4 @@ export { Category } from './category.entity';
 export { Channel } from './channel.entity';
 export { ServerMember } from './server-member.entity';
 export { Invite } from './invite.entity';
+export { Message } from './message.entity';

@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Server } from '../database/entities/server.entity';
 import {
   ServerMember,
@@ -26,6 +26,7 @@ export class MembersService {
     private memberRepository: Repository<ServerMember>,
     @InjectRepository(Invite)
     private inviteRepository: Repository<Invite>,
+    private dataSource: DataSource,
   ) {}
 
   async getMembers(serverId: string): Promise<ServerMember[]> {
@@ -129,18 +130,21 @@ export class MembersService {
       throw new ConflictException('You are already a member of this server');
     }
 
-    await this.memberRepository.save(
-      this.memberRepository.create({
-        userId,
-        serverId: invite.serverId,
-        role: MemberRole.MEMBER,
-      }),
-    );
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(
+        manager.create(ServerMember, {
+          userId,
+          serverId: invite.serverId,
+          role: MemberRole.MEMBER,
+        }),
+      );
 
-    if (invite.maxUses) {
-      invite.useCount += 1;
-      await this.inviteRepository.save(invite);
-    }
+      if (invite.maxUses) {
+        await manager.getRepository(Invite).update(invite.id, {
+          useCount: invite.useCount + 1,
+        });
+      }
+    });
 
     return this.serverRepository.findOneOrFail({
       where: { id: invite.serverId },

@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
@@ -62,6 +62,7 @@ export class AuthService {
     private configService: ConfigService<Record<string, unknown>>,
     private usersService: UsersService,
     private mailService: MailService,
+    private dataSource: DataSource,
     @InjectRepository(RefreshToken)
     private refreshTokenRepository: Repository<RefreshToken>,
     @InjectRepository(PasswordResetToken)
@@ -81,63 +82,83 @@ export class AuthService {
       if (existing.emailVerified) {
         throw new ConflictException('Email already in use');
       }
+
       const hashedPassword = await argon2.hash(
         dto.password,
         this.ARGON2_CONFIG,
       );
-      await this.usersService.updatePassword(existing.id, hashedPassword);
+      const token = randomUUID();
+      const expiresAt = new Date(
+        Date.now() + this.VERIFICATION_TOKEN_EXPIRY * 1000,
+      );
 
-      if (dto.firstName !== undefined && dto.firstName !== existing.firstName) {
-        await this.usersService.updateNames(existing.id, {
-          firstName: dto.firstName,
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(User).update(existing.id, {
+          password: hashedPassword,
         });
-      }
-      if (dto.lastName !== undefined && dto.lastName !== existing.lastName) {
-        await this.usersService.updateNames(existing.id, {
-          lastName: dto.lastName,
-        });
-      }
 
-      await this.sendVerificationEmail(existing.id, dto.email);
+        const nameUpdates: Record<string, string | undefined> = {};
+        if (
+          dto.firstName !== undefined &&
+          dto.firstName !== existing.firstName
+        ) {
+          nameUpdates.firstName = dto.firstName;
+        }
+        if (dto.lastName !== undefined && dto.lastName !== existing.lastName) {
+          nameUpdates.lastName = dto.lastName;
+        }
+        if (Object.keys(nameUpdates).length > 0) {
+          await manager.getRepository(User).update(existing.id, nameUpdates);
+        }
+
+        await manager.getRepository(EmailVerificationToken).save(
+          manager.create(EmailVerificationToken, {
+            userId: existing.id,
+            token,
+            expiresAt,
+          }),
+        );
+      });
+
+      await this.mailService.sendEmailVerificationEmail(dto.email, token);
+
       return {
         message: 'A verification email has been sent to this email address.',
       };
     }
 
     const hashedPassword = await argon2.hash(dto.password, this.ARGON2_CONFIG);
-    const user = await this.usersService.createUser({
-      email: dto.email,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      password: hashedPassword,
-    });
-
-    await this.sendVerificationEmail(user.id, dto.email);
-
-    return {
-      message:
-        'Account created. Please check your email to verify your account.',
-    };
-  }
-
-  private async sendVerificationEmail(
-    userId: string,
-    email: string,
-  ): Promise<void> {
     const token = randomUUID();
     const expiresAt = new Date(
       Date.now() + this.VERIFICATION_TOKEN_EXPIRY * 1000,
     );
 
-    await this.emailVerificationTokenRepository.save(
-      this.emailVerificationTokenRepository.create({
-        userId,
-        token,
-        expiresAt,
-      }),
-    );
+    await this.dataSource.transaction(async (manager) => {
+      const newUser = await manager.save(
+        manager.create(User, {
+          email: dto.email,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          password: hashedPassword,
+          needsOnboarding: true,
+        }),
+      );
 
-    await this.mailService.sendEmailVerificationEmail(email, token);
+      await manager.getRepository(EmailVerificationToken).save(
+        manager.create(EmailVerificationToken, {
+          userId: newUser.id,
+          token,
+          expiresAt,
+        }),
+      );
+    });
+
+    await this.mailService.sendEmailVerificationEmail(dto.email, token);
+
+    return {
+      message:
+        'Account created. Please check your email to verify your account.',
+    };
   }
 
   async login(dto: {
@@ -430,10 +451,14 @@ export class AuthService {
 
     const hashedPassword = await argon2.hash(newPassword, this.ARGON2_CONFIG);
 
-    await this.usersService.updatePassword(resetToken.userId, hashedPassword);
-
-    resetToken.used = true;
-    await this.passwordResetTokenRepository.save(resetToken);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.getRepository(User).update(resetToken.userId, {
+        password: hashedPassword,
+      });
+      await manager
+        .getRepository(PasswordResetToken)
+        .update(resetToken.id, { used: true });
+    });
   }
 
   async verifyEmail(
@@ -452,14 +477,29 @@ export class AuthService {
       throw new BadRequestException('Verification token has expired');
     }
 
-    await this.usersService.updateEmailVerified(verificationToken.userId, true);
+    const refreshTokenValue = randomUUID();
+    const refreshExpiresAt = new Date(
+      Date.now() + this.REFRESH_TOKEN_EXPIRY * 1000,
+    );
 
-    verificationToken.used = true;
-    await this.emailVerificationTokenRepository.save(verificationToken);
+    await this.dataSource.transaction(async (manager) => {
+      await manager
+        .getRepository(User)
+        .update(verificationToken.userId, { emailVerified: true });
+      await manager
+        .getRepository(EmailVerificationToken)
+        .update(verificationToken.id, { used: true });
+      await manager.getRepository(RefreshToken).save(
+        manager.create(RefreshToken, {
+          userId: verificationToken.userId,
+          token: refreshTokenValue,
+          expiresAt: refreshExpiresAt,
+        }),
+      );
+    });
 
     const user = await this.usersService.findById(verificationToken.userId);
-
-    const tokens = await this.generateTokenPair(
+    const access_token = this.generateAccessToken(
       user.id,
       user.email,
       user.firstName,
@@ -467,7 +507,8 @@ export class AuthService {
     );
 
     return {
-      ...tokens,
+      access_token,
+      refresh_token: refreshTokenValue,
       user: {
         id: user.id,
         email: user.email,
@@ -477,6 +518,26 @@ export class AuthService {
         needsOnboarding: user.needsOnboarding,
       },
     };
+  }
+
+  private async sendVerificationEmail(
+    userId: string,
+    email: string,
+  ): Promise<void> {
+    const token = randomUUID();
+    const expiresAt = new Date(
+      Date.now() + this.VERIFICATION_TOKEN_EXPIRY * 1000,
+    );
+
+    await this.emailVerificationTokenRepository.save(
+      this.emailVerificationTokenRepository.create({
+        userId,
+        token,
+        expiresAt,
+      }),
+    );
+
+    await this.mailService.sendEmailVerificationEmail(email, token);
   }
 
   async resendVerification(email: string): Promise<{ message: string }> {

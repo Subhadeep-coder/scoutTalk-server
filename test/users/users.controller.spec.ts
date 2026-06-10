@@ -44,7 +44,10 @@ describe('UsersController', () => {
       controllers: [UsersController],
       providers: [
         { provide: UsersService, useValue: mockUsersService },
-        { provide: CloudinaryService, useValue: { uploadFromBuffer: jest.fn() } },
+        {
+          provide: CloudinaryService,
+          useValue: { uploadFromBuffer: jest.fn() },
+        },
       ],
     }).compile();
 

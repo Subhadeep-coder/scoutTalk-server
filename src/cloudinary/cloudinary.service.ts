@@ -18,7 +18,8 @@ export class CloudinaryService implements OnModuleInit {
   constructor(private configService: ConfigService<Record<string, unknown>>) {}
 
   onModuleInit() {
-    const cloudinaryConf = this.configService.get<CloudinaryConfig>('cloudinary');
+    const cloudinaryConf =
+      this.configService.get<CloudinaryConfig>('cloudinary');
 
     cloudinary.config({
       cloud_name: cloudinaryConf?.cloudName,

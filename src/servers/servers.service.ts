@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { Server } from '../database/entities/server.entity';
 import { Category } from '../database/entities/category.entity';
@@ -30,62 +30,67 @@ export class ServersService {
     private channelRepository: Repository<Channel>,
     @InjectRepository(ServerMember)
     private memberRepository: Repository<ServerMember>,
+    private dataSource: DataSource,
   ) {}
 
   async create(userId: string, dto: CreateServerDto): Promise<Server> {
     const inviteCode = randomBytes(6).toString('base64url').slice(0, 8);
 
-    const server = this.serverRepository.create({
-      name: dto.name,
-      ownerId: userId,
-      avatar: dto.avatar,
-      inviteCode,
+    const serverId = await this.dataSource.transaction(async (manager) => {
+      const server = await manager.save(
+        manager.create(Server, {
+          name: dto.name,
+          ownerId: userId,
+          avatar: dto.avatar,
+          inviteCode,
+        }),
+      );
+
+      await manager.save(
+        manager.create(ServerMember, {
+          userId,
+          serverId: server.id,
+          role: MemberRole.OWNER,
+        }),
+      );
+
+      const textCategory = await manager.save(
+        manager.create(Category, {
+          name: 'Text Channels',
+          serverId: server.id,
+          position: 0,
+        }),
+      );
+
+      const voiceCategory = await manager.save(
+        manager.create(Category, {
+          name: 'Voice Channels',
+          serverId: server.id,
+          position: 1,
+        }),
+      );
+
+      await manager.save([
+        manager.create(Channel, {
+          name: 'general',
+          serverId: server.id,
+          categoryId: textCategory.id,
+          type: ChannelType.TEXT,
+          position: 0,
+        }),
+        manager.create(Channel, {
+          name: 'General',
+          serverId: server.id,
+          categoryId: voiceCategory.id,
+          type: ChannelType.VOICE,
+          position: 0,
+        }),
+      ]);
+
+      return server.id;
     });
 
-    const saved = await this.serverRepository.save(server);
-
-    await this.memberRepository.save(
-      this.memberRepository.create({
-        userId,
-        serverId: saved.id,
-        role: MemberRole.OWNER,
-      }),
-    );
-
-    const textCategory = await this.categoryRepository.save(
-      this.categoryRepository.create({
-        name: 'Text Channels',
-        serverId: saved.id,
-        position: 0,
-      }),
-    );
-
-    const voiceCategory = await this.categoryRepository.save(
-      this.categoryRepository.create({
-        name: 'Voice Channels',
-        serverId: saved.id,
-        position: 1,
-      }),
-    );
-
-    await this.channelRepository.save([
-      this.channelRepository.create({
-        name: 'general',
-        serverId: saved.id,
-        categoryId: textCategory.id,
-        type: ChannelType.TEXT,
-        position: 0,
-      }),
-      this.channelRepository.create({
-        name: 'General',
-        serverId: saved.id,
-        categoryId: voiceCategory.id,
-        type: ChannelType.VOICE,
-        position: 0,
-      }),
-    ]);
-
-    return this.findById(saved.id);
+    return this.findById(serverId);
   }
 
   async findById(serverId: string): Promise<Server> {

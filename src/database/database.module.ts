@@ -11,6 +11,7 @@ import {
   Channel,
   ServerMember,
   Invite,
+  Message,
 } from './entities';
 
 @Global()
@@ -36,6 +37,7 @@ import {
           Channel,
           ServerMember,
           Invite,
+          Message,
         ],
         synchronize: configService.get<boolean>('DATABASE_SYNCHRONIZE', false),
         logging: configService.get<boolean>('DATABASE_LOGGING', false),
@@ -51,6 +53,7 @@ import {
       Channel,
       ServerMember,
       Invite,
+      Message,
     ]),
   ],
   exports: [TypeOrmModule],
