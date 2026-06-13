@@ -14,6 +14,31 @@ class AuthorDto {
   avatar?: string;
 }
 
+class ParentAuthorDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiPropertyOptional()
+  displayName?: string;
+
+  @ApiPropertyOptional()
+  avatar?: string;
+}
+
+class ParentMessageDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  content: string | null;
+
+  @ApiPropertyOptional({ type: [Object] })
+  attachments?: Array<{ url: string; type: string; name?: string }>;
+
+  @ApiPropertyOptional({ type: ParentAuthorDto })
+  author?: ParentAuthorDto;
+}
+
 export class MessageResponseDto {
   @ApiProperty()
   id: string;
@@ -32,6 +57,9 @@ export class MessageResponseDto {
 
   @ApiPropertyOptional()
   parentId?: string;
+
+  @ApiPropertyOptional({ type: ParentMessageDto })
+  parent?: ParentMessageDto;
 
   @ApiProperty()
   createdAt: Date;

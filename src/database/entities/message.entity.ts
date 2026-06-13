@@ -58,4 +58,8 @@ export class Message {
   @ManyToOne(() => Server, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'serverId' })
   server: Server;
+
+  @ManyToOne(() => Message, { createForeignKeyConstraints: false })
+  @JoinColumn({ name: 'parentId' })
+  parent?: Message;
 }

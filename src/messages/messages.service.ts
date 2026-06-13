@@ -73,6 +73,8 @@ export class MessagesService {
     const query = this.messageRepository
       .createQueryBuilder('m')
       .leftJoinAndSelect('m.author', 'author')
+      .leftJoinAndSelect('m.parent', 'parent')
+      .leftJoinAndSelect('parent.author', 'parentAuthor')
       .select([
         'm.id',
         'm.channelId',
@@ -90,6 +92,13 @@ export class MessagesService {
         'author.lastName',
         'author.displayName',
         'author.avatar',
+        'parent.id',
+        'parent.content',
+        'parent.attachments',
+        'parent.authorId',
+        'parentAuthor.id',
+        'parentAuthor.displayName',
+        'parentAuthor.avatar',
       ])
       .where('m.channelId = :channelId', { channelId })
       .orderBy('m.createdAt', 'DESC')
@@ -113,6 +122,8 @@ export class MessagesService {
     const message = await this.messageRepository
       .createQueryBuilder('m')
       .leftJoinAndSelect('m.author', 'author')
+      .leftJoinAndSelect('m.parent', 'parent')
+      .leftJoinAndSelect('parent.author', 'parentAuthor')
       .select([
         'm.id',
         'm.channelId',
@@ -130,6 +141,13 @@ export class MessagesService {
         'author.lastName',
         'author.displayName',
         'author.avatar',
+        'parent.id',
+        'parent.content',
+        'parent.attachments',
+        'parent.authorId',
+        'parentAuthor.id',
+        'parentAuthor.displayName',
+        'parentAuthor.avatar',
       ])
       .where('m.id = :id', { id: messageId })
       .getOne();

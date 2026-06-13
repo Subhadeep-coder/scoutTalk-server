@@ -74,11 +74,16 @@ export class UsersService {
     avatar?: string;
     password?: string;
   }) {
+    const displayName = data.lastName
+      ? `${data.firstName ?? ''} ${data.lastName}`.trim()
+      : (data.firstName ?? undefined);
+
     const user = this.userRepository.create({
       googleId: data.googleId,
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
+      displayName,
       avatar: data.avatar,
       password: data.password,
       emailVerified: !!data.googleId,
@@ -129,6 +134,12 @@ export class UsersService {
     if (data.firstName !== undefined) updates.firstName = data.firstName;
     if (data.lastName !== undefined) updates.lastName = data.lastName;
     if (Object.keys(updates).length > 0) {
+      const existing = await this.findById(userId);
+      const firstName = updates.firstName ?? existing.firstName ?? '';
+      const lastName = updates.lastName ?? existing.lastName ?? '';
+      updates.displayName = lastName
+        ? `${firstName} ${lastName}`.trim()
+        : firstName || undefined;
       await this.userRepository.update(userId, updates);
     }
   }
