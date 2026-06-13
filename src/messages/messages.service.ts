@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +11,7 @@ import { Channel } from '../database/entities/channel.entity';
 import { ServerMember } from '../database/entities/server-member.entity';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { WebsocketService } from '../websocket/websocket.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class MessagesService {
@@ -21,6 +23,7 @@ export class MessagesService {
     @InjectRepository(ServerMember)
     private memberRepository: Repository<ServerMember>,
     private websocketService: WebsocketService,
+    private cloudinary: CloudinaryService,
   ) {}
 
   async create(
@@ -48,7 +51,7 @@ export class MessagesService {
       authorId: userId,
       channelId,
       serverId: channel.serverId,
-      content: dto.content,
+      content: dto.content ?? null,
       parentId: dto.parentId,
       attachments: dto.attachments ?? [],
     });
@@ -80,6 +83,7 @@ export class MessagesService {
         'm.parentId',
         'm.createdAt',
         'm.updatedAt',
+        'm.isEdited',
         'author.id',
         'author.username',
         'author.firstName',
@@ -119,6 +123,7 @@ export class MessagesService {
         'm.parentId',
         'm.createdAt',
         'm.updatedAt',
+        'm.isEdited',
         'author.id',
         'author.username',
         'author.firstName',
@@ -136,6 +141,83 @@ export class MessagesService {
     return message;
   }
 
+  async update(
+    messageId: string,
+    userId: string,
+    content?: string | null,
+  ): Promise<Message> {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.authorId !== userId) {
+      throw new ForbiddenException('You can only edit your own messages');
+    }
+
+    if (content !== undefined && content !== null && content.trim() === '') {
+      throw new BadRequestException('Content cannot be empty');
+    }
+
+    message.content = content ?? null;
+    message.isEdited = true;
+    await this.messageRepository.save(message);
+
+    const result = await this.findById(messageId);
+
+    this.websocketService.emitToServer(
+      message.serverId,
+      'message:update',
+      result,
+    );
+
+    return result;
+  }
+
+  async removeAttachment(
+    messageId: string,
+    userId: string,
+    url: string,
+  ): Promise<Message> {
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.authorId !== userId) {
+      throw new ForbiddenException('You can only edit your own messages');
+    }
+
+    const attachments = message.attachments ?? [];
+    const idx = attachments.findIndex((a) => a.url === url);
+    if (idx === -1) {
+      throw new NotFoundException('Attachment not found on this message');
+    }
+
+    attachments.splice(idx, 1);
+    message.attachments = attachments;
+    message.isEdited = true;
+    await this.messageRepository.save(message);
+
+    await this.cloudinary.deleteByUrl(url);
+
+    const result = await this.findById(messageId);
+
+    this.websocketService.emitToServer(
+      message.serverId,
+      'message:update',
+      result,
+    );
+
+    return result;
+  }
+
   async delete(messageId: string, userId: string): Promise<void> {
     const message = await this.findById(messageId);
 
@@ -143,7 +225,13 @@ export class MessagesService {
       throw new ForbiddenException('You can only delete your own messages');
     }
 
+    const attachments = message.attachments ?? [];
+
     await this.messageRepository.remove(message);
+
+    if (attachments.length > 0) {
+      await this.cloudinary.deleteByUrls(attachments.map((a) => a.url));
+    }
 
     this.websocketService.emitToServer(message.serverId, 'message:delete', {
       id: messageId,

@@ -123,4 +123,42 @@ export class CloudinaryService implements OnModuleInit {
   async deleteFile(publicId: string): Promise<void> {
     await cloudinary.uploader.destroy(publicId);
   }
+
+  async deleteByUrl(url: string): Promise<void> {
+    const { publicId, resourceType } = this.parseCloudinaryUrl(url);
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+  }
+
+  async deleteByUrls(urls: string[]): Promise<void> {
+    await Promise.all(urls.map((url) => this.deleteByUrl(url)));
+  }
+
+  private parseCloudinaryUrl(url: string): {
+    publicId: string;
+    resourceType: 'image' | 'video' | 'raw';
+  } {
+    const parts = url.split('/upload/');
+    if (parts.length !== 2) {
+      throw new Error('Invalid Cloudinary URL');
+    }
+
+    const prefix = parts[0];
+    const typeSegment = prefix.split('/').pop() || 'image';
+    const resourceType = (['image', 'video', 'raw'].includes(typeSegment)
+      ? typeSegment
+      : 'image') as 'image' | 'video' | 'raw';
+
+    let path = parts[1];
+
+    if (path.startsWith('v') && path.includes('/')) {
+      path = path.slice(path.indexOf('/') + 1);
+    }
+
+    const dotIndex = path.lastIndexOf('.');
+    if (dotIndex !== -1) {
+      path = path.slice(0, dotIndex);
+    }
+
+    return { publicId: path, resourceType };
+  }
 }

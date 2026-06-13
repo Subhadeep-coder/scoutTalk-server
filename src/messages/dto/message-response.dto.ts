@@ -39,6 +39,9 @@ export class MessageResponseDto {
   @ApiProperty()
   updatedAt: Date;
 
+  @ApiProperty()
+  isEdited: boolean;
+
   @ApiProperty({ type: AuthorDto })
   author: AuthorDto;
 }

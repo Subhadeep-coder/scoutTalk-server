@@ -29,7 +29,7 @@ export class Message {
   parentId?: string;
 
   @Column('text', { nullable: true })
-  content?: string;
+  content: string | null;
 
   @Column('jsonb', { nullable: true, default: null })
   attachments?: Array<{
@@ -37,6 +37,9 @@ export class Message {
     type: string;
     name?: string;
   }>;
+
+  @Column('boolean', { default: false })
+  isEdited: boolean;
 
   @CreateDateColumn()
   createdAt: Date;
