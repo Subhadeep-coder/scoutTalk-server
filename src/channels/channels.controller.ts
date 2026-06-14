@@ -5,9 +5,15 @@ import {
   Delete,
   Body,
   Param,
+  Req,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Request } from 'express';
+
+interface AuthRequest extends Request {
+  user: { userId: string };
+}
 import {
   ApiTags,
   ApiOperation,
@@ -19,6 +25,8 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+import { ReorderCategoriesDto } from './dto/reorder-categories.dto';
+import { ReorderChannelsDto } from './dto/reorder-channels.dto';
 
 @ApiTags('channels')
 @ApiBearerAuth('JWT-auth')
@@ -32,6 +40,16 @@ export class ChannelsController {
   @ApiResponse({ status: 201, description: 'Category created' })
   async createCategory(@Body() dto: CreateCategoryDto) {
     return this.channelsService.createCategory(dto);
+  }
+
+  @Patch('categories/reorder')
+  @ApiOperation({ summary: 'Reorder categories within a server' })
+  @ApiResponse({ status: 200, description: 'Categories reordered' })
+  async reorderCategories(
+    @Req() req: AuthRequest,
+    @Body() dto: ReorderCategoriesDto,
+  ) {
+    await this.channelsService.reorderCategories(dto.serverId, req.user.userId, dto.order);
   }
 
   @Patch('categories/:id')
@@ -60,6 +78,21 @@ export class ChannelsController {
   @ApiResponse({ status: 201, description: 'Channel created' })
   async createChannel(@Body() dto: CreateChannelDto) {
     return this.channelsService.createChannel(dto);
+  }
+
+  @Patch('channels/reorder')
+  @ApiOperation({ summary: 'Reorder channels within a category' })
+  @ApiResponse({ status: 200, description: 'Channels reordered' })
+  async reorderChannels(
+    @Req() req: AuthRequest,
+    @Body() dto: ReorderChannelsDto,
+  ) {
+    await this.channelsService.reorderChannels(
+      dto.serverId,
+      dto.categoryId ?? null,
+      req.user.userId,
+      dto.order,
+    );
   }
 
   @Patch('channels/:id')

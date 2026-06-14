@@ -3,10 +3,8 @@ import {
   IsUUID,
   MinLength,
   MaxLength,
-  IsOptional,
-  IsInt,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCategoryDto {
   @ApiProperty()
@@ -18,9 +16,4 @@ export class CreateCategoryDto {
   @ApiProperty()
   @IsUUID()
   serverId: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsInt()
-  position?: number;
 }

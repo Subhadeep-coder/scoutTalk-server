@@ -20,6 +20,7 @@ export const swaggerConfig = new DocumentBuilder()
   .addTag('servers', 'Server management endpoints')
   .addTag('channels', 'Channel and category management endpoints')
   .addTag('members', 'Server member and invite management endpoints')
+  .addTag('messages', 'Message and attachment endpoints')
   .addTag('health', 'Health check endpoints')
   .build();
 

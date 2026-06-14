@@ -5,8 +5,8 @@ import {
   MinLength,
   MaxLength,
   IsOptional,
-  IsInt,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ChannelType } from '../../database/entities/channel.entity';
 
@@ -15,6 +15,7 @@ export class CreateChannelDto {
   @IsString()
   @MinLength(1)
   @MaxLength(32)
+  @Transform(({ value }) => value.toLowerCase())
   name: string;
 
   @ApiProperty()
@@ -30,9 +31,4 @@ export class CreateChannelDto {
   @IsOptional()
   @IsEnum(ChannelType)
   type?: ChannelType;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsInt()
-  position?: number;
 }
