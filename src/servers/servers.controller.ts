@@ -138,4 +138,30 @@ export class ServersController {
     });
     return this.serversService.update(id, userId, { avatar: result.url });
   }
+
+  @Post(':id/banner')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload server banner' })
+  @ApiResponse({ status: 200, description: 'Banner uploaded' })
+  async uploadBanner(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const userId = (req as any).user.userId;
+    const result = await this.cloudinary.uploadFromBuffer(file.buffer, {
+      folder: `servers/${id}`,
+      publicId: 'banner',
+    });
+    return this.serversService.update(id, userId, { banner: result.url });
+  }
 }

@@ -1,31 +1,25 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MembersController } from './members.controller';
-import { MembersService } from './members.service';
+import { ServerSettingsController } from './server-settings.controller';
+import { ServerSettingsService } from './server-settings.service';
 import { Server } from '../database/entities/server.entity';
 import { ServerMember } from '../database/entities/server-member.entity';
-import { Invite } from '../database/entities/invite.entity';
+import { ServerTag } from '../database/entities/server-tag.entity';
 import { ServerEngagementConfig } from '../database/entities/server-engagement-config.entity';
 import { WelcomeMessage } from '../database/entities/welcome-message.entity';
-import { Message } from '../database/entities/message.entity';
-import { Channel } from '../database/entities/channel.entity';
-import { User } from '../database/entities/user.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Server,
       ServerMember,
-      Invite,
+      ServerTag,
       ServerEngagementConfig,
       WelcomeMessage,
-      Message,
-      Channel,
-      User,
     ]),
   ],
-  controllers: [MembersController],
-  providers: [MembersService],
-  exports: [MembersService],
+  controllers: [ServerSettingsController],
+  providers: [ServerSettingsService],
+  exports: [ServerSettingsService],
 })
-export class MembersModule {}
+export class ServerSettingsModule {}

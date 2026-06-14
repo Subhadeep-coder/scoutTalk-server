@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Put,
   Body,
   Param,
@@ -33,6 +34,7 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import {
   UpdateUsernameDto,
   UpdateProfileDto,
+  SetActiveTagDto,
   UserResponseDto,
 } from './dto/users.dto';
 
@@ -247,6 +249,40 @@ export class UsersController {
     });
 
     return this.usersService.updateProfile(dbUser.id, { avatar: result.url });
+  }
+
+  @Patch('me/active-tag')
+  @SkipOnboardingCheck()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Set or clear active server tag on profile' })
+  @ApiOkResponse({ type: UserResponseDto })
+  async setActiveTag(
+    @Req() req: Request,
+    @Body() dto: SetActiveTagDto,
+  ) {
+    const user = (req as any).user;
+    const userId = user.userId;
+    const dbUser = userId
+      ? await this.usersService.findById(userId).catch(() => null)
+      : null;
+    if (!dbUser) throw new NotFoundException('User not found');
+    return this.usersService.setActiveTag(dbUser.id, dto.serverId);
+  }
+
+  @Get('me/active-tag')
+  @SkipOnboardingCheck()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get active server tag on profile' })
+  async getActiveTag(@Req() req: Request) {
+    const user = (req as any).user;
+    const userId = user.userId;
+    const dbUser = userId
+      ? await this.usersService.findById(userId).catch(() => null)
+      : null;
+    if (!dbUser) throw new NotFoundException('User not found');
+    return this.usersService.getActiveTag(dbUser.id);
   }
 
   @Get('username/:username')

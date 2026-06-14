@@ -55,6 +55,12 @@ export class ServerResponseDto {
   @ApiPropertyOptional()
   avatar?: string;
 
+  @ApiPropertyOptional()
+  banner?: string;
+
+  @ApiPropertyOptional()
+  description?: string;
+
   @ApiProperty()
   inviteCode: string;
 
@@ -83,6 +89,12 @@ export class ServerListDto {
 
   @ApiPropertyOptional()
   avatar?: string;
+
+  @ApiPropertyOptional()
+  banner?: string;
+
+  @ApiPropertyOptional()
+  description?: string;
 
   @ApiProperty()
   createdAt: Date;

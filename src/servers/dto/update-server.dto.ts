@@ -13,4 +13,15 @@ export class UpdateServerDto {
   @IsOptional()
   @IsString()
   avatar?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  banner?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
 }

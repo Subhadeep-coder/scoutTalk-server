@@ -41,6 +41,9 @@ export class Message {
   @Column('boolean', { default: false })
   isEdited: boolean;
 
+  @Column('boolean', { default: false })
+  isSystem: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

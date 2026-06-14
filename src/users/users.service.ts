@@ -169,4 +169,22 @@ export class UsersService {
 
     return user;
   }
+
+  async setActiveTag(userId: string, serverId?: string): Promise<User> {
+    if (serverId) {
+      await this.userRepository.update(userId, { activeServerTagId: serverId });
+    } else {
+      await this.userRepository.update(userId, { activeServerTagId: undefined });
+    }
+    return this.findById(userId);
+  }
+
+  async getActiveTag(userId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['activeServerTag', 'activeServerTag.tag'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user.activeServerTag?.tag ?? null;
+  }
 }

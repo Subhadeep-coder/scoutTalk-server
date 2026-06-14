@@ -23,6 +23,13 @@ export class UpdateProfileDto {
   avatar?: string;
 }
 
+export class SetActiveTagDto {
+  @ApiPropertyOptional({ description: 'Server ID whose tag to display' })
+  @IsOptional()
+  @IsString()
+  serverId?: string;
+}
+
 export class UserResponseDto {
   @ApiProperty()
   id: string;
@@ -41,6 +48,9 @@ export class UserResponseDto {
 
   @ApiPropertyOptional()
   avatar?: string;
+
+  @ApiPropertyOptional()
+  activeServerTagId?: string;
 
   @ApiProperty()
   needsOnboarding: boolean;

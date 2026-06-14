@@ -15,6 +15,7 @@ import { ServersModule } from './servers/servers.module';
 import { ChannelsModule } from './channels/channels.module';
 import { MembersModule } from './members/members.module';
 import { MessagesModule } from './messages/messages.module';
+import { ServerSettingsModule } from './server-settings/server-settings.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MessagesModule } from './messages/messages.module';
     ChannelsModule,
     MembersModule,
     MessagesModule,
+    ServerSettingsModule,
   ],
   controllers: [AppController],
   providers: [

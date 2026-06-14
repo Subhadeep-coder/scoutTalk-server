@@ -5,8 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { RefreshToken } from './refresh-token.entity';
+import { Server } from './server.entity';
 
 @Entity('users')
 export class User {
@@ -37,6 +40,9 @@ export class User {
   @Column('text', { nullable: true })
   avatar?: string;
 
+  @Column('uuid', { nullable: true })
+  activeServerTagId?: string;
+
   @Column('boolean', { default: false })
   emailVerified: boolean;
 
@@ -54,4 +60,8 @@ export class User {
     onDelete: 'CASCADE',
   })
   refreshTokens: RefreshToken[];
+
+  @ManyToOne(() => Server, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'activeServerTagId' })
+  activeServerTag?: Server;
 }

@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
@@ -13,6 +14,7 @@ import { Category } from './category.entity';
 import { Channel } from './channel.entity';
 import { ServerMember } from './server-member.entity';
 import { Invite } from './invite.entity';
+import { ServerTag } from './server-tag.entity';
 
 @Entity('servers')
 export class Server {
@@ -27,6 +29,12 @@ export class Server {
 
   @Column('text', { nullable: true })
   avatar?: string;
+
+  @Column('text', { nullable: true })
+  banner?: string;
+
+  @Column('text', { nullable: true })
+  description?: string;
 
   @Column('varchar', { unique: true })
   inviteCode: string;
@@ -64,4 +72,10 @@ export class Server {
     onDelete: 'CASCADE',
   })
   invites: Invite[];
+
+  @OneToOne(() => ServerTag, (tag) => tag.server, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
+  tag?: ServerTag;
 }

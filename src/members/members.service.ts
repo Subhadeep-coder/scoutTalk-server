@@ -13,6 +13,12 @@ import {
   MemberRole,
 } from '../database/entities/server-member.entity';
 import { Invite } from '../database/entities/invite.entity';
+import { ServerEngagementConfig } from '../database/entities/server-engagement-config.entity';
+import { WelcomeMessage } from '../database/entities/welcome-message.entity';
+import { Message } from '../database/entities/message.entity';
+import { Channel } from '../database/entities/channel.entity';
+import { WebsocketService } from '../websocket/websocket.service';
+import { User } from '../database/entities/user.entity';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -26,7 +32,18 @@ export class MembersService {
     private memberRepository: Repository<ServerMember>,
     @InjectRepository(Invite)
     private inviteRepository: Repository<Invite>,
+    @InjectRepository(ServerEngagementConfig)
+    private engagementRepository: Repository<ServerEngagementConfig>,
+    @InjectRepository(WelcomeMessage)
+    private welcomeMessageRepository: Repository<WelcomeMessage>,
+    @InjectRepository(Message)
+    private messageRepository: Repository<Message>,
+    @InjectRepository(Channel)
+    private channelRepository: Repository<Channel>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private dataSource: DataSource,
+    private websocketService: WebsocketService,
   ) {}
 
   async getMembers(serverId: string): Promise<ServerMember[]> {
@@ -146,9 +163,83 @@ export class MembersService {
       }
     });
 
+    await this.sendWelcomeMessage(invite.serverId, userId);
+
     return this.serverRepository.findOneOrFail({
       where: { id: invite.serverId },
       relations: ['categories', 'channels', 'members'],
     });
+  }
+
+  private async sendWelcomeMessage(
+    serverId: string,
+    userId: string,
+  ): Promise<void> {
+    try {
+      const config = await this.engagementRepository.findOne({
+        where: { serverId },
+      });
+
+      if (!config?.welcomeEnabled || !config.systemChannelId) return;
+
+      const channel = await this.channelRepository.findOne({
+        where: { id: config.systemChannelId, serverId },
+      });
+      if (!channel) return;
+
+      const messages = await this.welcomeMessageRepository.find({
+        where: { serverId, isEnabled: true },
+        order: { displayOrder: 'ASC', createdAt: 'ASC' },
+      });
+
+      if (messages.length === 0) return;
+
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      const mention = user ? `<@${userId}>` : 'Someone';
+
+      let selected: WelcomeMessage;
+      switch (config.welcomeSelectionStrategy) {
+        case 'round_robin': {
+          const index =
+            (await this.messageRepository.count({
+              where: { serverId, isSystem: true },
+            })) % messages.length;
+          selected = messages[index];
+          break;
+        }
+        case 'random':
+          selected = messages[Math.floor(Math.random() * messages.length)];
+          break;
+        default:
+          selected = messages[0];
+      }
+
+      const content = selected.content.replace(
+        /\{user\}/g,
+        user?.displayName ?? mention,
+      );
+
+      const message = this.messageRepository.create({
+        authorId: userId,
+        channelId: config.systemChannelId,
+        serverId,
+        content,
+        attachments: [],
+        isSystem: true,
+      });
+
+      const saved = await this.messageRepository.save(message);
+      const result = await this.messageRepository.findOne({
+        where: { id: saved.id },
+        relations: ['author'],
+      });
+
+      this.websocketService.emitToServer(serverId, 'message:new', result);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send welcome message for server ${serverId}`,
+        error,
+      );
+    }
   }
 }

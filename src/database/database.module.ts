@@ -12,6 +12,9 @@ import {
   ServerMember,
   Invite,
   Message,
+  ServerTag,
+  ServerEngagementConfig,
+  WelcomeMessage,
 } from './entities';
 
 @Global()
@@ -38,6 +41,9 @@ import {
           ServerMember,
           Invite,
           Message,
+          ServerTag,
+          ServerEngagementConfig,
+          WelcomeMessage,
         ],
         synchronize: configService.get<boolean>('DATABASE_SYNCHRONIZE', false),
         logging: configService.get<boolean>('DATABASE_LOGGING', false),
@@ -54,6 +60,9 @@ import {
       ServerMember,
       Invite,
       Message,
+      ServerTag,
+      ServerEngagementConfig,
+      WelcomeMessage,
     ]),
   ],
   exports: [TypeOrmModule],
