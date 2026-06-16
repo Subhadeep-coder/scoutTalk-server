@@ -17,6 +17,7 @@ import {
   WelcomeMessage,
   ServerRole,
   MemberRoleEntity,
+  CustomEmoji,
 } from './entities';
 
 @Global()
@@ -48,6 +49,7 @@ import {
           WelcomeMessage,
           ServerRole,
           MemberRoleEntity,
+          CustomEmoji,
         ],
         synchronize: configService.get<boolean>('DATABASE_SYNCHRONIZE', false),
         logging: configService.get<boolean>('DATABASE_LOGGING', false),
@@ -69,6 +71,7 @@ import {
       WelcomeMessage,
       ServerRole,
       MemberRoleEntity,
+      CustomEmoji,
     ]),
   ],
   exports: [TypeOrmModule],

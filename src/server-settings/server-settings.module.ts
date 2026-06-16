@@ -7,6 +7,7 @@ import { ServerMember } from '../database/entities/server-member.entity';
 import { ServerTag } from '../database/entities/server-tag.entity';
 import { ServerEngagementConfig } from '../database/entities/server-engagement-config.entity';
 import { WelcomeMessage } from '../database/entities/welcome-message.entity';
+import { RolesModule } from '../roles/roles.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { WelcomeMessage } from '../database/entities/welcome-message.entity';
       ServerEngagementConfig,
       WelcomeMessage,
     ]),
+    RolesModule,
   ],
   controllers: [ServerSettingsController],
   providers: [ServerSettingsService],

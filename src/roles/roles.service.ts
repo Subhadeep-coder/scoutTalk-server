@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource, EntityManager, In } from 'typeorm';
 import { Server } from '../database/entities/server.entity';
 import {
   ServerMember,
@@ -19,6 +19,7 @@ import { ReorderRolesDto } from './dto/reorder-roles.dto';
 import {
   ALL_PERMISSIONS,
   hasPermission,
+  Permissions,
 } from './permissions';
 
 @Injectable()
@@ -36,12 +37,11 @@ export class RolesService {
   ) {}
 
   private async assertAdmin(serverId: string, userId: string): Promise<void> {
-    const member = await this.memberRepository.findOne({
-      where: { serverId, userId },
-    });
-    if (!member) throw new NotFoundException('Member not found');
-    if (member.role === MemberRole.MEMBER) {
-      throw new ForbiddenException('Only admins can manage roles');
+    const hasPerm = await this.checkPermission(serverId, userId, Permissions.MANAGE_ROLES);
+    if (!hasPerm) {
+      const member = await this.memberRepository.findOne({ where: { serverId, userId } });
+      if (!member) throw new NotFoundException('Member not found');
+      throw new ForbiddenException('You do not have permission to manage roles');
     }
   }
 
@@ -83,10 +83,24 @@ export class RolesService {
   }
 
   async getRole(serverId: string, roleId: string): Promise<ServerRole> {
-    const role = await this.roleRepository.findOne({
-      where: { id: roleId, serverId },
-      relations: ['memberRoles', 'memberRoles.member', 'memberRoles.member.user'],
-    });
+    const role = await this.roleRepository
+      .createQueryBuilder('role')
+      .leftJoinAndSelect('role.memberRoles', 'memberRoles')
+      .leftJoinAndSelect('memberRoles.member', 'member')
+      .leftJoin('member.user', 'user')
+      .addSelect([
+        'user.id',
+        'user.username',
+        'user.firstName',
+        'user.lastName',
+        'user.displayName',
+        'user.avatar',
+        'user.activeServerTagId',
+      ])
+      .where('role.id = :roleId', { roleId })
+      .andWhere('role.serverId = :serverId', { serverId })
+      .getOne();
+
     if (!role) throw new NotFoundException('Role not found');
     return role;
   }
@@ -187,20 +201,31 @@ export class RolesService {
     });
     if (!role) throw new NotFoundException('Role not found');
 
-    const memberRoles = await this.memberRoleRepository.find({
-      where: { roleId },
-      relations: ['member', 'member.user'],
-    });
+    const memberRoles = await this.memberRoleRepository
+      .createQueryBuilder('mr')
+      .leftJoinAndSelect('mr.member', 'member')
+      .leftJoin('member.user', 'user')
+      .addSelect([
+        'user.id',
+        'user.username',
+        'user.firstName',
+        'user.lastName',
+        'user.displayName',
+        'user.avatar',
+        'user.activeServerTagId',
+      ])
+      .where('mr.roleId = :roleId', { roleId })
+      .getMany();
 
     return memberRoles.map((mr) => mr.member);
   }
 
-  async addMemberToRole(
+  async addMembersToRoleBulk(
     serverId: string,
     roleId: string,
-    memberId: string,
+    memberIds: string[],
     userId: string,
-  ): Promise<void> {
+  ): Promise<{ added: number }> {
     await this.assertAdmin(serverId, userId);
 
     const role = await this.roleRepository.findOne({
@@ -208,19 +233,27 @@ export class RolesService {
     });
     if (!role) throw new NotFoundException('Role not found');
 
-    const member = await this.memberRepository.findOne({
-      where: { id: memberId, serverId },
+    const members = await this.memberRepository.find({
+      where: { serverId, id: In(memberIds) },
     });
-    if (!member) throw new NotFoundException('Member not found');
+    if (members.length !== memberIds.length) {
+      throw new NotFoundException('One or more members not found');
+    }
 
-    const exists = await this.memberRoleRepository.findOne({
-      where: { memberId, roleId },
+    const existing = await this.memberRoleRepository.find({
+      where: { roleId, memberId: In(memberIds) },
     });
-    if (exists) return;
+    const existingSet = new Set(existing.map((e) => e.memberId));
 
-    await this.memberRoleRepository.save(
-      this.memberRoleRepository.create({ memberId, roleId }),
-    );
+    const newEntries = memberIds
+      .filter((mid) => !existingSet.has(mid))
+      .map((mid) => this.memberRoleRepository.create({ memberId: mid, roleId }));
+
+    if (newEntries.length > 0) {
+      await this.memberRoleRepository.save(newEntries);
+    }
+
+    return { added: newEntries.length };
   }
 
   async removeMemberFromRole(

@@ -44,7 +44,9 @@ export class PermissionGuard implements CanActivate {
       where: { serverId, userId },
     });
 
-    if (!member) return true;
+    if (!member) {
+      throw new ForbiddenException('You are not a member of this server');
+    }
 
     if (member.role === MemberRole.OWNER) return true;
 

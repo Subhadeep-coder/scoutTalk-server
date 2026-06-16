@@ -20,6 +20,7 @@ import { Channel } from '../database/entities/channel.entity';
 import { WebsocketService } from '../websocket/websocket.service';
 import { User } from '../database/entities/user.entity';
 import { RolesService } from '../roles/roles.service';
+import { Permissions } from '../roles/permissions';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -48,12 +49,33 @@ export class MembersService {
     private rolesService: RolesService,
   ) {}
 
-  async getMembers(serverId: string): Promise<ServerMember[]> {
-    return this.memberRepository.find({
-      where: { serverId },
-      relations: ['user'],
-      order: { joinedAt: 'ASC' },
+  async getMembers(serverId: string, requesterId: string): Promise<ServerMember[]> {
+    const requester = await this.memberRepository.findOne({
+      where: { serverId, userId: requesterId },
     });
+    if (!requester) {
+      throw new NotFoundException('You are not a member of this server');
+    }
+
+    return this.memberRepository
+      .createQueryBuilder('member')
+      .leftJoin('member.user', 'user')
+      .leftJoinAndSelect('member.memberRoles', 'memberRoles')
+      .leftJoin('memberRoles.role', 'role')
+      .addSelect([
+        'user.id',
+        'user.username',
+        'user.firstName',
+        'user.lastName',
+        'user.displayName',
+        'user.avatar',
+        'user.activeServerTagId',
+        'role.name',
+        'role.color',
+      ])
+      .where('member.serverId = :serverId', { serverId })
+      .orderBy('member.joinedAt', 'ASC')
+      .getMany();
   }
 
   async kickMember(
@@ -71,7 +93,18 @@ export class MembersService {
       where: { serverId, userId: requesterId },
     });
 
-    if (!requesterMember || requesterMember.role === MemberRole.MEMBER) {
+    if (!requesterMember) {
+      throw new BadRequestException(
+        'You do not have permission to kick members',
+      );
+    }
+
+    const canKick = await this.rolesService.checkPermission(
+      serverId,
+      requesterId,
+      Permissions.KICK_MEMBERS,
+    );
+    if (!canKick) {
       throw new BadRequestException(
         'You do not have permission to kick members',
       );

@@ -25,7 +25,7 @@ import { Permissions as Perm } from './permissions';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { ReorderRolesDto } from './dto/reorder-roles.dto';
-import { AddMemberDto } from './dto/add-member.dto';
+import { AddMembersBulkDto } from './dto/add-members-bulk.dto';
 
 @ApiTags('roles')
 @ApiBearerAuth('JWT-auth')
@@ -122,21 +122,20 @@ export class RolesController {
   @UseGuards(PermissionGuard)
   @Permissions(Perm.MANAGE_ROLES)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Add member to role (admin only)' })
-  async addMemberToRole(
+  @ApiOperation({ summary: 'Add members to a role (admin only)' })
+  async addMembersToRole(
     @Req() req: Request,
     @Param('serverId') serverId: string,
     @Param('roleId') roleId: string,
-    @Body() dto: AddMemberDto,
+    @Body() dto: AddMembersBulkDto,
   ) {
     const userId = (req as any).user.userId;
-    await this.rolesService.addMemberToRole(
+    return this.rolesService.addMembersToRoleBulk(
       serverId,
       roleId,
-      dto.memberId,
+      dto.memberIds,
       userId,
     );
-    return { message: 'Member added to role' };
   }
 
   @Delete(':roleId/members/:memberId')

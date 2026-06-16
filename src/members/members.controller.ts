@@ -29,8 +29,12 @@ export class MembersController {
   @Get('servers/:serverId/members')
   @ApiOperation({ summary: 'List server members' })
   @ApiResponse({ status: 200, description: 'List of members' })
-  async getMembers(@Param('serverId') serverId: string) {
-    return this.membersService.getMembers(serverId);
+  async getMembers(
+    @Req() req: Request,
+    @Param('serverId') serverId: string,
+  ) {
+    const userId = (req as any).user.userId;
+    return this.membersService.getMembers(serverId, userId);
   }
 
   @Delete('servers/:serverId/members/:userId')

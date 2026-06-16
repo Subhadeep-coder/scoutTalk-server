@@ -6,16 +6,15 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Server } from '../database/entities/server.entity';
-import {
-  ServerMember,
-  MemberRole,
-} from '../database/entities/server-member.entity';
+import { ServerMember } from '../database/entities/server-member.entity';
 import { ServerTag } from '../database/entities/server-tag.entity';
 import {
   ServerEngagementConfig,
   WelcomeSelectionStrategy,
 } from '../database/entities/server-engagement-config.entity';
 import { WelcomeMessage } from '../database/entities/welcome-message.entity';
+import { RolesService } from '../roles/roles.service';
+import { Permissions } from '../roles/permissions';
 import { SetTagDto } from './dto/set-tag.dto';
 import { UpdateEngagementDto } from './dto/update-engagement.dto';
 import { CreateWelcomeMessageDto } from './dto/create-welcome-message.dto';
@@ -34,28 +33,15 @@ export class ServerSettingsService {
     private engagementRepository: Repository<ServerEngagementConfig>,
     @InjectRepository(WelcomeMessage)
     private welcomeMessageRepository: Repository<WelcomeMessage>,
+    private rolesService: RolesService,
   ) {}
 
   private async assertAdmin(serverId: string, userId: string): Promise<void> {
-    const member = await this.memberRepository.findOne({
-      where: { serverId, userId },
-    });
-    if (!member) {
-      throw new NotFoundException('You are not a member of this server');
-    }
-    if (member.role === MemberRole.MEMBER) {
-      throw new ForbiddenException(
-        'Only admins and the owner can manage server settings',
-      );
-    }
-  }
-
-  private async assertMember(serverId: string, userId: string): Promise<void> {
-    const member = await this.memberRepository.findOne({
-      where: { serverId, userId },
-    });
-    if (!member) {
-      throw new NotFoundException('You are not a member of this server');
+    const hasPerm = await this.rolesService.checkPermission(serverId, userId, Permissions.MANAGE_GUILD);
+    if (!hasPerm) {
+      const member = await this.memberRepository.findOne({ where: { serverId, userId } });
+      if (!member) throw new NotFoundException('You are not a member of this server');
+      throw new ForbiddenException('You do not have permission to manage server settings');
     }
   }
 

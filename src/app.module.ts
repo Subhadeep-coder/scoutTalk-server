@@ -17,6 +17,7 @@ import { MembersModule } from './members/members.module';
 import { MessagesModule } from './messages/messages.module';
 import { ServerSettingsModule } from './server-settings/server-settings.module';
 import { RolesModule } from './roles/roles.module';
+import { EmojisModule } from './emojis/emojis.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { RolesModule } from './roles/roles.module';
     MessagesModule,
     ServerSettingsModule,
     RolesModule,
+    EmojisModule,
   ],
   controllers: [AppController],
   providers: [
