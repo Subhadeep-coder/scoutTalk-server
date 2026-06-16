@@ -60,7 +60,7 @@ export class MessagesController {
   }
 
   @Post('channels/:channelId/attachments')
-  @UseInterceptors(FilesInterceptor('files', 10))
+  @UseInterceptors(FilesInterceptor('files', 10, { limits: { fileSize: 10 * 1024 * 1024 } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

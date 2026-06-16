@@ -16,6 +16,7 @@ import { ChannelsModule } from './channels/channels.module';
 import { MembersModule } from './members/members.module';
 import { MessagesModule } from './messages/messages.module';
 import { ServerSettingsModule } from './server-settings/server-settings.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ServerSettingsModule } from './server-settings/server-settings.module';
     MembersModule,
     MessagesModule,
     ServerSettingsModule,
+    RolesModule,
   ],
   controllers: [AppController],
   providers: [

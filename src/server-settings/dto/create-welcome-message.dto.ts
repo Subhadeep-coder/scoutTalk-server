@@ -1,11 +1,10 @@
-import { IsString, IsOptional, IsBoolean, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, Min, Length } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateWelcomeMessageDto {
   @ApiProperty({ example: 'Welcome {user} to the server!' })
   @IsString()
-  @Min(1)
-  @Max(2000)
+  @Length(1, 2000)
   content: string;
 
   @ApiPropertyOptional()

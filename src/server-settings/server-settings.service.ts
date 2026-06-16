@@ -119,7 +119,14 @@ export class ServerSettingsService {
         serverId,
         welcomeSelectionStrategy: WelcomeSelectionStrategy.SINGLE,
       });
-      config = await this.engagementRepository.save(config);
+      try {
+        config = await this.engagementRepository.save(config);
+      } catch {
+        config = await this.engagementRepository.findOne({
+          where: { serverId },
+        });
+        if (!config) throw new Error('Failed to create engagement config');
+      }
     }
     return config;
   }

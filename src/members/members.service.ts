@@ -19,6 +19,7 @@ import { Message } from '../database/entities/message.entity';
 import { Channel } from '../database/entities/channel.entity';
 import { WebsocketService } from '../websocket/websocket.service';
 import { User } from '../database/entities/user.entity';
+import { RolesService } from '../roles/roles.service';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -44,6 +45,7 @@ export class MembersService {
     private userRepository: Repository<User>,
     private dataSource: DataSource,
     private websocketService: WebsocketService,
+    private rolesService: RolesService,
   ) {}
 
   async getMembers(serverId: string): Promise<ServerMember[]> {
@@ -147,8 +149,8 @@ export class MembersService {
       throw new ConflictException('You are already a member of this server');
     }
 
-    await this.dataSource.transaction(async (manager) => {
-      await manager.save(
+    const member = await this.dataSource.transaction(async (manager) => {
+      const saved = await manager.save(
         manager.create(ServerMember, {
           userId,
           serverId: invite.serverId,
@@ -161,8 +163,15 @@ export class MembersService {
           useCount: invite.useCount + 1,
         });
       }
-    });
 
+      await this.rolesService.assignEveryoneRole(
+        saved.id,
+        invite.serverId,
+        manager,
+      );
+
+      return saved;
+    });
     await this.sendWelcomeMessage(invite.serverId, userId);
 
     return this.serverRepository.findOneOrFail({

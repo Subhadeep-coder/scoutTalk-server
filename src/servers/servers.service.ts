@@ -16,6 +16,14 @@ import {
 } from '../database/entities/server-member.entity';
 import { CreateServerDto } from './dto/create-server.dto';
 import { UpdateServerDto } from './dto/update-server.dto';
+import { ServerEngagementConfig } from '../database/entities/server-engagement-config.entity';
+import { WelcomeMessage } from '../database/entities/welcome-message.entity';
+import { ServerRole } from '../database/entities/server-role.entity';
+import { MemberRole as MemberRoleEntity } from '../database/entities/member-role.entity';
+import {
+  ALL_PERMISSIONS,
+  EVERYONE_DEFAULT_PERMISSIONS,
+} from '../roles/permissions';
 
 @Injectable()
 export class ServersService {
@@ -36,7 +44,7 @@ export class ServersService {
   async create(userId: string, dto: CreateServerDto): Promise<Server> {
     const inviteCode = randomBytes(6).toString('base64url').slice(0, 8);
 
-    const serverId = await this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const server = await manager.save(
         manager.create(Server, {
           name: dto.name,
@@ -46,7 +54,7 @@ export class ServersService {
         }),
       );
 
-      await manager.save(
+      const member = await manager.save(
         manager.create(ServerMember, {
           userId,
           serverId: server.id,
@@ -70,7 +78,7 @@ export class ServersService {
         }),
       );
 
-      await manager.save([
+      const generalChannel = await manager.save(
         manager.create(Channel, {
           name: 'general',
           serverId: server.id,
@@ -78,19 +86,73 @@ export class ServersService {
           type: ChannelType.TEXT,
           position: 0,
         }),
+      );
+
+      await manager.save(
         manager.create(Channel, {
-          name: 'General',
+          name: 'general',
           serverId: server.id,
           categoryId: voiceCategory.id,
           type: ChannelType.VOICE,
           position: 0,
         }),
+      );
+
+      const everyoneRole = await manager.save(
+        manager.create(ServerRole, {
+          serverId: server.id,
+          name: '@everyone',
+          position: 0,
+          isDefault: true,
+          permissions: EVERYONE_DEFAULT_PERMISSIONS.toString(),
+        }),
+      );
+
+      const adminRole = await manager.save(
+        manager.create(ServerRole, {
+          serverId: server.id,
+          name: 'Admin',
+          color: '#FF0000',
+          position: 1,
+          mentionable: true,
+          permissions: ALL_PERMISSIONS.toString(),
+        }),
+      );
+
+      await manager.save([
+        manager.create(MemberRoleEntity, {
+          memberId: member.id,
+          roleId: everyoneRole.id,
+        }),
+        manager.create(MemberRoleEntity, {
+          memberId: member.id,
+          roleId: adminRole.id,
+        }),
       ]);
+
+      await manager.save(
+        manager.create(ServerEngagementConfig, {
+          serverId: server.id,
+          systemChannelId: generalChannel.id,
+          welcomeEnabled: true,
+          stickerPromptEnabled: true,
+          boostMessageEnabled: true,
+        }),
+      );
+
+      await manager.save(
+        manager.create(WelcomeMessage, {
+          serverId: server.id,
+          content: 'Welcome {user} to the server!',
+          isEnabled: true,
+          displayOrder: 0,
+        }),
+      );
 
       return server.id;
     });
 
-    return this.findById(serverId);
+    return this.findById(result);
   }
 
   async findById(serverId: string): Promise<Server> {

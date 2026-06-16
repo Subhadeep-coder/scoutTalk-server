@@ -214,7 +214,7 @@ export class UsersController {
 
   @Post('me/avatar')
   @ApiBearerAuth('JWT-auth')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

@@ -11,3 +11,5 @@ export { Message } from './message.entity';
 export { ServerTag } from './server-tag.entity';
 export { ServerEngagementConfig } from './server-engagement-config.entity';
 export { WelcomeMessage } from './welcome-message.entity';
+export { ServerRole } from './server-role.entity';
+export { MemberRole as MemberRoleEntity } from './member-role.entity';

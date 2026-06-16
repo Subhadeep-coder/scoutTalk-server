@@ -10,6 +10,7 @@ import { WelcomeMessage } from '../database/entities/welcome-message.entity';
 import { Message } from '../database/entities/message.entity';
 import { Channel } from '../database/entities/channel.entity';
 import { User } from '../database/entities/user.entity';
+import { RolesModule } from '../roles/roles.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { User } from '../database/entities/user.entity';
       Channel,
       User,
     ]),
+    RolesModule,
   ],
   controllers: [MembersController],
   providers: [MembersService],

@@ -3,6 +3,8 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  BeforeInsert,
+  BeforeUpdate,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
@@ -21,6 +23,12 @@ export class Channel {
 
   @Column('varchar')
   name: string;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  normalizeName() {
+    this.name = this.name.toLowerCase().replace(/\s+/g, '-');
+  }
 
   @Column('uuid')
   serverId: string;

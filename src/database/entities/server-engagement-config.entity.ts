@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { Server } from './server.entity';
 import { Channel } from './channel.entity';
@@ -17,6 +18,7 @@ export enum WelcomeSelectionStrategy {
 }
 
 @Entity('server_engagement_configs')
+@Unique(['serverId'])
 export class ServerEngagementConfig {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -27,7 +29,7 @@ export class ServerEngagementConfig {
   @Column('uuid', { nullable: true })
   systemChannelId?: string;
 
-  @Column('boolean', { default: false })
+  @Column('boolean', { default: true })
   welcomeEnabled: boolean;
 
   @Column({
@@ -36,10 +38,10 @@ export class ServerEngagementConfig {
   })
   welcomeSelectionStrategy: WelcomeSelectionStrategy;
 
-  @Column('boolean', { default: false })
+  @Column('boolean', { default: true })
   stickerPromptEnabled: boolean;
 
-  @Column('boolean', { default: false })
+  @Column('boolean', { default: true })
   boostMessageEnabled: boolean;
 
   @CreateDateColumn()

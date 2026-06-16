@@ -4,11 +4,13 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Unique,
 } from 'typeorm';
 import { User } from './user.entity';
 import { Server } from './server.entity';
+import { MemberRole as MemberRoleEntity } from './member-role.entity';
 
 export enum MemberRole {
   OWNER = 'OWNER',
@@ -43,4 +45,10 @@ export class ServerMember {
   })
   @JoinColumn({ name: 'serverId' })
   server: Server;
+
+  @OneToMany(() => MemberRoleEntity, (mr) => mr.member, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
+  memberRoles: MemberRoleEntity[];
 }
