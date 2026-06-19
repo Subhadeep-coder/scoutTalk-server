@@ -6,10 +6,14 @@ import {
   OnGatewayDisconnect,
   OnGatewayInit,
 } from '@nestjs/websockets';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
 import { WebsocketService } from './websocket.service';
+import { ServerMember } from '../database/entities/server-member.entity';
+import { User } from '../database/entities/user.entity';
 
 @Injectable()
 @WsGateway({
@@ -24,9 +28,15 @@ export class WebsocketGateway
   @WebSocketServer()
   server: Server;
 
+  private activeConnections = new Map<string, Set<string>>();
+
   constructor(
     private jwtService: JwtService,
     private websocketService: WebsocketService,
+    @InjectRepository(ServerMember)
+    private memberRepository: Repository<ServerMember>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
   afterInit() {
@@ -47,16 +57,72 @@ export class WebsocketGateway
 
       const payload = this.jwtService.verify<{ sub: string }>(token);
       const userId = payload.sub;
+
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['id', 'username', 'displayName', 'avatar'],
+      });
+      if (!user) {
+        socket.disconnect();
+        return;
+      }
+
       (socket as any).userId = userId;
+      (socket as any).user = user;
       socket.join(`user:${userId}`);
+
+      const connections = this.activeConnections.get(userId);
+      const isFirst = !connections || connections.size === 0;
+
+      if (!connections) {
+        this.activeConnections.set(userId, new Set());
+      }
+      this.activeConnections.get(userId)!.add(socket.id);
+
+      if (isFirst) {
+        const serverIds = (
+          await this.memberRepository.find({
+            where: { userId },
+            select: ['serverId'],
+          })
+        ).map((m) => m.serverId);
+
+        (socket as any).serverIds = serverIds;
+
+        for (const serverId of serverIds) {
+          this.server
+            .to(`server:${serverId}`)
+            .emit('presence:online', { user });
+        }
+      }
     } catch {
       socket.emit('error', { message: 'Invalid token' });
       socket.disconnect();
     }
   }
 
-  handleDisconnect(socket: Socket) {
-    const userId = (socket as any).userId;
+  async handleDisconnect(socket: Socket) {
+    const userId = (socket as any).userId as string | undefined;
+    if (!userId) return;
+
+    const connections = this.activeConnections.get(userId);
+    if (!connections) return;
+
+    connections.delete(socket.id);
+
+    if (connections.size === 0) {
+      this.activeConnections.delete(userId);
+
+      const serverIds = (socket as any).serverIds as string[] | undefined;
+      const user = (socket as any).user;
+      if (serverIds && serverIds.length > 0 && user) {
+        for (const serverId of serverIds) {
+          this.server
+            .to(`server:${serverId}`)
+            .emit('presence:offline', { user });
+        }
+      }
+    }
   }
 
   @SubscribeMessage('joinServer')
@@ -64,10 +130,38 @@ export class WebsocketGateway
     const userId = (client as any).userId;
     if (!userId) return;
     client.join(`server:${serverId}`);
+
+    const serverIds = (client as any).serverIds as string[] | undefined;
+    if (!serverIds?.includes(serverId)) {
+      (client as any).serverIds = [...(serverIds ?? []), serverId];
+    }
   }
 
   @SubscribeMessage('leaveServer')
   async leaveServer(client: Socket, serverId: string) {
     client.leave(`server:${serverId}`);
+  }
+
+  @SubscribeMessage('typing:start')
+  typingStart(client: Socket, payload: { channelId: string; serverId: string }) {
+    const user = (client as any).user as { id: string; username?: string; displayName?: string; avatar?: string } | undefined;
+    if (!user) return;
+
+    this.server.to(`server:${payload.serverId}`).emit('channel:typing', {
+      userId: user.id,
+      channelId: payload.channelId,
+      user,
+    });
+  }
+
+  @SubscribeMessage('typing:stop')
+  typingStop(client: Socket, payload: { channelId: string; serverId: string }) {
+    const user = (client as any).user as { id: string } | undefined;
+    if (!user) return;
+
+    this.server.to(`server:${payload.serverId}`).emit('channel:typing:stop', {
+      userId: user.id,
+      channelId: payload.channelId,
+    });
   }
 }
