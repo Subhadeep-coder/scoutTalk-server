@@ -49,10 +49,7 @@ export class ServerSettingsController {
   @Delete('tag')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove server tag (admin only)' })
-  async deleteTag(
-    @Req() req: Request,
-    @Param('serverId') serverId: string,
-  ) {
+  async deleteTag(@Req() req: Request, @Param('serverId') serverId: string) {
     const userId = (req as any).user.userId;
     await this.settingsService.deleteTag(serverId, userId);
   }

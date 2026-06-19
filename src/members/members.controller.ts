@@ -29,10 +29,7 @@ export class MembersController {
   @Get('servers/:serverId/members')
   @ApiOperation({ summary: 'List server members' })
   @ApiResponse({ status: 200, description: 'List of members' })
-  async getMembers(
-    @Req() req: Request,
-    @Param('serverId') serverId: string,
-  ) {
+  async getMembers(@Req() req: Request, @Param('serverId') serverId: string) {
     const userId = (req as any).user.userId;
     return this.membersService.getMembers(serverId, userId);
   }
@@ -55,13 +52,37 @@ export class MembersController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Generate an invite code' })
   @ApiResponse({ status: 201, description: 'Invite created' })
+  @ApiResponse({ status: 404, description: 'Not a member' })
   async createInvite(
     @Req() req: Request,
     @Param('serverId') serverId: string,
     @Body() dto: CreateInviteDto,
   ) {
     const userId = (req as any).user.userId;
-    return this.membersService.generateInvite(serverId, userId, dto.maxUses);
+    return this.membersService.generateInvite(serverId, userId, dto);
+  }
+
+  @Get('servers/:serverId/invites')
+  @ApiOperation({ summary: 'List all active invites' })
+  @ApiResponse({ status: 200, description: 'List of invites' })
+  @ApiResponse({ status: 404, description: 'Not a member' })
+  async listInvites(@Req() req: Request, @Param('serverId') serverId: string) {
+    const userId = (req as any).user.userId;
+    return this.membersService.getServerInvites(serverId, userId);
+  }
+
+  @Delete('servers/:serverId/invites/:inviteId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoke an invite code' })
+  @ApiResponse({ status: 204, description: 'Invite revoked' })
+  @ApiResponse({ status: 404, description: 'Invite not found' })
+  async revokeInvite(
+    @Req() req: Request,
+    @Param('serverId') serverId: string,
+    @Param('inviteId') inviteId: string,
+  ) {
+    const userId = (req as any).user.userId;
+    await this.membersService.revokeInvite(inviteId, serverId, userId);
   }
 
   @Get('invites/:code')

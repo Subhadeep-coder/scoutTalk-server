@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Category } from '../database/entities/category.entity';
@@ -70,7 +75,9 @@ export class ChannelsService {
       .select('COALESCE(MAX(ch.position), -1)', 'max');
 
     if (dto.categoryId) {
-      query.where('ch.categoryId = :categoryId', { categoryId: dto.categoryId });
+      query.where('ch.categoryId = :categoryId', {
+        categoryId: dto.categoryId,
+      });
     } else {
       query.where('ch.serverId = :serverId AND ch.categoryId IS NULL', {
         serverId: dto.serverId,
@@ -145,15 +152,21 @@ export class ChannelsService {
 
     for (const id of order) {
       if (!categoryMap.has(id)) {
-        throw new BadRequestException(`Category ${id} not found in this server`);
+        throw new BadRequestException(
+          `Category ${id} not found in this server`,
+        );
       }
     }
 
     if (order.length !== categories.length) {
-      throw new BadRequestException('Order must include all categories in this server');
+      throw new BadRequestException(
+        'Order must include all categories in this server',
+      );
     }
 
-    const cases = order.map((id, i) => `WHEN :id_${i} THEN :pos_${i}`).join(' ');
+    const cases = order
+      .map((id, i) => `WHEN :id_${i} THEN :pos_${i}`)
+      .join(' ');
     const params: Record<string, unknown> = {};
     order.forEach((id, i) => {
       params[`id_${i}`] = id;
@@ -192,9 +205,7 @@ export class ChannelsService {
     }
 
     const channels = await this.channelRepository.find({
-      where: categoryId
-        ? { categoryId }
-        : { categoryId: IsNull() },
+      where: categoryId ? { categoryId } : { categoryId: IsNull() },
       order: { position: 'ASC' },
     });
 
@@ -202,15 +213,21 @@ export class ChannelsService {
 
     for (const id of order) {
       if (!channelMap.has(id)) {
-        throw new BadRequestException(`Channel ${id} not found in this category`);
+        throw new BadRequestException(
+          `Channel ${id} not found in this category`,
+        );
       }
     }
 
     if (order.length !== channels.length) {
-      throw new BadRequestException('Order must include all channels in this category');
+      throw new BadRequestException(
+        'Order must include all channels in this category',
+      );
     }
 
-    const cases = order.map((id, i) => `WHEN :id_${i} THEN :pos_${i}`).join(' ');
+    const cases = order
+      .map((id, i) => `WHEN :id_${i} THEN :pos_${i}`)
+      .join(' ');
     const params: Record<string, unknown> = {};
     order.forEach((id, i) => {
       params[`id_${i}`] = id;

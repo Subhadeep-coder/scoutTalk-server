@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { DataSource, Repository } from 'typeorm';
 import { Server } from '../database/entities/server.entity';
 import {
@@ -47,9 +48,17 @@ export class MembersService {
     private dataSource: DataSource,
     private websocketService: WebsocketService,
     private rolesService: RolesService,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    this.frontendUrl = this.configService.get<string>('app.frontendUrl')!;
+  }
 
-  async getMembers(serverId: string, requesterId: string): Promise<ServerMember[]> {
+  private readonly frontendUrl: string;
+
+  async getMembers(
+    serverId: string,
+    requesterId: string,
+  ): Promise<ServerMember[]> {
     const requester = await this.memberRepository.findOne({
       where: { serverId, userId: requesterId },
     });
@@ -128,8 +137,8 @@ export class MembersService {
   async generateInvite(
     serverId: string,
     userId: string,
-    maxUses?: number,
-  ): Promise<Invite> {
+    options?: { maxUses?: number; expiresInDays?: number; channelId?: string },
+  ): Promise<{ inviteUrl: string }> {
     const member = await this.memberRepository.findOne({
       where: { serverId, userId },
     });
@@ -139,22 +148,34 @@ export class MembersService {
     }
 
     const code = randomBytes(6).toString('base64url').slice(0, 8);
+    const expiresInDays = options?.expiresInDays ?? 30;
 
     const invite = this.inviteRepository.create({
       code,
       serverId,
       createdBy: userId,
-      maxUses,
+      maxUses: options?.maxUses,
+      channelId: options?.channelId,
+      expiresAt: new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000),
     });
 
-    return this.inviteRepository.save(invite);
+    await this.inviteRepository.save(invite);
+    return { inviteUrl: `${this.frontendUrl}/invite/${code}` };
   }
 
   async getInvite(code: string): Promise<Invite> {
-    const invite = await this.inviteRepository.findOne({
-      where: { code },
-      relations: ['server'],
-    });
+    const invite = await this.inviteRepository
+      .createQueryBuilder('invite')
+      .leftJoinAndSelect('invite.server', 'server')
+      .leftJoin('invite.creator', 'creator')
+      .addSelect([
+        'creator.id',
+        'creator.username',
+        'creator.displayName',
+        'creator.avatar',
+      ])
+      .where('invite.code = :code', { code })
+      .getOne();
 
     if (!invite) {
       throw new NotFoundException('Invite not found');
@@ -168,7 +189,11 @@ export class MembersService {
       throw new BadRequestException('Invite has reached maximum uses');
     }
 
-    return invite;
+    const memberCount = await this.memberRepository.count({
+      where: { serverId: invite.serverId },
+    });
+
+    return Object.assign(this.attachInviteUrl(invite), { memberCount });
   }
 
   async joinViaInvite(code: string, userId: string): Promise<Server> {
@@ -191,11 +216,9 @@ export class MembersService {
         }),
       );
 
-      if (invite.maxUses) {
-        await manager.getRepository(Invite).update(invite.id, {
-          useCount: invite.useCount + 1,
-        });
-      }
+      await manager.getRepository(Invite).update(invite.id, {
+        useCount: () => '"useCount" + 1',
+      });
 
       await this.rolesService.assignEveryoneRole(
         saved.id,
@@ -210,6 +233,63 @@ export class MembersService {
     return this.serverRepository.findOneOrFail({
       where: { id: invite.serverId },
       relations: ['categories', 'channels', 'members'],
+    });
+  }
+
+  async getServerInvites(serverId: string, userId: string): Promise<Invite[]> {
+    const member = await this.memberRepository.findOne({
+      where: { serverId, userId },
+    });
+    if (!member) {
+      throw new NotFoundException('You are not a member of this server');
+    }
+
+    const invites = await this.inviteRepository
+      .createQueryBuilder('invite')
+      .leftJoin('invite.creator', 'creator')
+      .addSelect([
+        'creator.id',
+        'creator.username',
+        'creator.displayName',
+        'creator.avatar',
+      ])
+      .where('invite.serverId = :serverId', { serverId })
+      .andWhere('(invite.expiresAt IS NULL OR invite.expiresAt > :now)', {
+        now: new Date(),
+      })
+      .andWhere('(invite.maxUses IS NULL OR invite.useCount < invite.maxUses)')
+      .orderBy('invite.createdAt', 'DESC')
+      .getMany();
+
+    return invites.map((inv) => this.attachInviteUrl(inv));
+  }
+
+  async revokeInvite(
+    inviteId: string,
+    serverId: string,
+    userId: string,
+  ): Promise<void> {
+    const member = await this.memberRepository.findOne({
+      where: { serverId, userId },
+    });
+    if (!member) {
+      throw new NotFoundException('You are not a member of this server');
+    }
+
+    const invite = await this.inviteRepository.findOne({
+      where: { id: inviteId, serverId },
+    });
+
+    if (!invite) {
+      throw new NotFoundException('Invite not found');
+    }
+
+    await this.inviteRepository.remove(invite);
+  }
+
+  private attachInviteUrl(invite: Invite): Invite & { inviteUrl: string } {
+    return Object.assign(invite, {
+      inviteUrl: `${this.frontendUrl}/invite/${invite.code}`,
     });
   }
 

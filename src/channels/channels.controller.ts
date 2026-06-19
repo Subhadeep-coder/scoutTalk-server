@@ -49,7 +49,11 @@ export class ChannelsController {
     @Req() req: AuthRequest,
     @Body() dto: ReorderCategoriesDto,
   ) {
-    await this.channelsService.reorderCategories(dto.serverId, req.user.userId, dto.order);
+    await this.channelsService.reorderCategories(
+      dto.serverId,
+      req.user.userId,
+      dto.order,
+    );
   }
 
   @Patch('categories/:id')

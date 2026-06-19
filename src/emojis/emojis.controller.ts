@@ -49,7 +49,9 @@ export class EmojisController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 512 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 512 * 1024 } }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {

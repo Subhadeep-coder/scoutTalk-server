@@ -7,10 +7,7 @@ export interface PermissionsMetadata {
   paramName?: string;
 }
 
-export const Permissions = (
-  permission: bigint,
-  paramName = 'serverId',
-) =>
+export const Permissions = (permission: bigint, paramName = 'serverId') =>
   SetMetadata<string, PermissionsMetadata>(PERMISSIONS_KEY, {
     permission: permission.toString(),
     paramName,

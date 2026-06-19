@@ -37,11 +37,20 @@ export class ServerSettingsService {
   ) {}
 
   private async assertAdmin(serverId: string, userId: string): Promise<void> {
-    const hasPerm = await this.rolesService.checkPermission(serverId, userId, Permissions.MANAGE_GUILD);
+    const hasPerm = await this.rolesService.checkPermission(
+      serverId,
+      userId,
+      Permissions.MANAGE_GUILD,
+    );
     if (!hasPerm) {
-      const member = await this.memberRepository.findOne({ where: { serverId, userId } });
-      if (!member) throw new NotFoundException('You are not a member of this server');
-      throw new ForbiddenException('You do not have permission to manage server settings');
+      const member = await this.memberRepository.findOne({
+        where: { serverId, userId },
+      });
+      if (!member)
+        throw new NotFoundException('You are not a member of this server');
+      throw new ForbiddenException(
+        'You do not have permission to manage server settings',
+      );
     }
   }
 

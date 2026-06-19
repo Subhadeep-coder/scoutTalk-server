@@ -214,7 +214,9 @@ export class UsersController {
 
   @Post('me/avatar')
   @ApiBearerAuth('JWT-auth')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -257,10 +259,7 @@ export class UsersController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Set or clear active server tag on profile' })
   @ApiOkResponse({ type: UserResponseDto })
-  async setActiveTag(
-    @Req() req: Request,
-    @Body() dto: SetActiveTagDto,
-  ) {
+  async setActiveTag(@Req() req: Request, @Body() dto: SetActiveTagDto) {
     const user = (req as any).user;
     const userId = user.userId;
     const dbUser = userId

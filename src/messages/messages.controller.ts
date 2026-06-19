@@ -49,7 +49,11 @@ export class MessagesController {
   @Post('channels/:channelId/messages')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Send a message' })
-  @ApiResponse({ status: 201, description: 'Message sent', type: MessageResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Message sent',
+    type: MessageResponseDto,
+  })
   async create(
     @Req() req: Request,
     @Param('channelId') channelId: string,
@@ -60,7 +64,9 @@ export class MessagesController {
   }
 
   @Post('channels/:channelId/attachments')
-  @UseInterceptors(FilesInterceptor('files', 10, { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FilesInterceptor('files', 10, { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -93,7 +99,10 @@ export class MessagesController {
       where: { serverId: channel.serverId, userId },
     });
     if (!member) {
-      return { statusCode: 403, message: 'You are not a member of this server' };
+      return {
+        statusCode: 403,
+        message: 'You are not a member of this server',
+      };
     }
 
     const results = await Promise.all(
@@ -146,9 +155,7 @@ export class MessagesController {
       },
     },
   })
-  async deleteAttachments(
-    @Body('urls') urls: string[],
-  ) {
+  async deleteAttachments(@Body('urls') urls: string[]) {
     if (urls?.length) {
       await this.cloudinary.deleteByUrls(urls);
     }
@@ -156,7 +163,9 @@ export class MessagesController {
 
   @Delete('messages/:messageId/attachments')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Remove an attachment from a message and delete from Cloudinary' })
+  @ApiOperation({
+    summary: 'Remove an attachment from a message and delete from Cloudinary',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -176,9 +185,21 @@ export class MessagesController {
 
   @Get('channels/:channelId/messages')
   @ApiOperation({ summary: 'Get messages in a channel' })
-  @ApiResponse({ status: 200, description: 'List of messages', type: [MessageResponseDto] })
-  @ApiQuery({ name: 'before', required: false, description: 'Cursor for pagination' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Max messages (default 50, max 100)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of messages',
+    type: [MessageResponseDto],
+  })
+  @ApiQuery({
+    name: 'before',
+    required: false,
+    description: 'Cursor for pagination',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Max messages (default 50, max 100)',
+  })
   async findByChannel(
     @Param('channelId') channelId: string,
     @Query('before') before?: string,

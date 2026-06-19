@@ -174,7 +174,9 @@ export class UsersService {
     if (serverId) {
       await this.userRepository.update(userId, { activeServerTagId: serverId });
     } else {
-      await this.userRepository.update(userId, { activeServerTagId: undefined });
+      await this.userRepository.update(userId, {
+        activeServerTagId: undefined,
+      });
     }
     return this.findById(userId);
   }

@@ -7,7 +7,8 @@ export class ReorderCategoriesDto {
   serverId: string;
 
   @ApiProperty({
-    description: 'Array of category IDs in the new order (must include all categories)',
+    description:
+      'Array of category IDs in the new order (must include all categories)',
     example: ['uuid-1', 'uuid-2', 'uuid-3'],
   })
   @IsArray()

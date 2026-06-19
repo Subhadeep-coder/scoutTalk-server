@@ -17,7 +17,8 @@ export class ReorderChannelsDto {
   categoryId?: string | null;
 
   @ApiProperty({
-    description: 'Array of channel IDs in the new order (must include all channels in this category)',
+    description:
+      'Array of channel IDs in the new order (must include all channels in this category)',
     example: ['uuid-1', 'uuid-2', 'uuid-3'],
   })
   @IsArray()

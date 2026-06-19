@@ -14,7 +14,7 @@ export class Invite {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('varchar', { unique: true })
+  @Column('varchar', { unique: true, length: 16 })
   code: string;
 
   @Column('uuid')
@@ -22,6 +22,9 @@ export class Invite {
 
   @Column('uuid')
   createdBy: string;
+
+  @Column('uuid', { nullable: true })
+  channelId?: string;
 
   @Column('timestamp', { nullable: true })
   expiresAt?: Date;

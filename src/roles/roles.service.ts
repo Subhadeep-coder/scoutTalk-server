@@ -16,11 +16,7 @@ import { MemberRole as MemberRoleEntity } from '../database/entities/member-role
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { ReorderRolesDto } from './dto/reorder-roles.dto';
-import {
-  ALL_PERMISSIONS,
-  hasPermission,
-  Permissions,
-} from './permissions';
+import { ALL_PERMISSIONS, hasPermission, Permissions } from './permissions';
 
 @Injectable()
 export class RolesService {
@@ -37,11 +33,19 @@ export class RolesService {
   ) {}
 
   private async assertAdmin(serverId: string, userId: string): Promise<void> {
-    const hasPerm = await this.checkPermission(serverId, userId, Permissions.MANAGE_ROLES);
+    const hasPerm = await this.checkPermission(
+      serverId,
+      userId,
+      Permissions.MANAGE_ROLES,
+    );
     if (!hasPerm) {
-      const member = await this.memberRepository.findOne({ where: { serverId, userId } });
+      const member = await this.memberRepository.findOne({
+        where: { serverId, userId },
+      });
       if (!member) throw new NotFoundException('Member not found');
-      throw new ForbiddenException('You do not have permission to manage roles');
+      throw new ForbiddenException(
+        'You do not have permission to manage roles',
+      );
     }
   }
 
@@ -247,7 +251,9 @@ export class RolesService {
 
     const newEntries = memberIds
       .filter((mid) => !existingSet.has(mid))
-      .map((mid) => this.memberRoleRepository.create({ memberId: mid, roleId }));
+      .map((mid) =>
+        this.memberRoleRepository.create({ memberId: mid, roleId }),
+      );
 
     if (newEntries.length > 0) {
       await this.memberRoleRepository.save(newEntries);
@@ -287,7 +293,8 @@ export class RolesService {
     const memberRole = await this.memberRoleRepository.findOne({
       where: { memberId, roleId },
     });
-    if (!memberRole) throw new NotFoundException('Member does not have this role');
+    if (!memberRole)
+      throw new NotFoundException('Member does not have this role');
 
     await this.memberRoleRepository.remove(memberRole);
   }

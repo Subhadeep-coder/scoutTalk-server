@@ -8,7 +8,10 @@ import { ServerMember } from '../database/entities/server-member.entity';
 import { RolesModule } from '../roles/roles.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CustomEmoji, Server, ServerMember]), RolesModule],
+  imports: [
+    TypeOrmModule.forFeature([CustomEmoji, Server, ServerMember]),
+    RolesModule,
+  ],
   controllers: [EmojisController],
   providers: [EmojisService],
   exports: [EmojisService],

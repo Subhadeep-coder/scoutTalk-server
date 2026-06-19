@@ -30,7 +30,8 @@ export class EmojisService {
     const member = await this.memberRepository.findOne({
       where: { serverId, userId },
     });
-    if (!member) throw new NotFoundException('You are not a member of this server');
+    if (!member)
+      throw new NotFoundException('You are not a member of this server');
   }
 
   async findAll(serverId: string): Promise<CustomEmoji[]> {
@@ -98,9 +99,13 @@ export class EmojisService {
       Permissions.MANAGE_EXPRESSIONS,
     );
     if (!hasPerm) {
-      const member = await this.memberRepository.findOne({ where: { serverId, userId } });
+      const member = await this.memberRepository.findOne({
+        where: { serverId, userId },
+      });
       if (!member) throw new NotFoundException('Member not found');
-      throw new ForbiddenException('You do not have permission to manage emojis');
+      throw new ForbiddenException(
+        'You do not have permission to manage emojis',
+      );
     }
 
     await this.cloudinary.deleteByUrl(emoji.imageUrl);

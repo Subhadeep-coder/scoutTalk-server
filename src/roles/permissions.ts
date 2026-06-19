@@ -83,16 +83,14 @@ export function removePermission(
 export function permissionsToArray(permissionBits: bigint): PermissionKey[] {
   const granted: PermissionKey[] = [];
   for (const [key, value] of Object.entries(Permissions)) {
-    if ((permissionBits & (value as bigint)) !== 0n) {
+    if ((permissionBits & value) !== 0n) {
       granted.push(key as PermissionKey);
     }
   }
   return granted;
 }
 
-export function arrayToPermissions(
-  keys: PermissionKey[],
-): bigint {
+export function arrayToPermissions(keys: PermissionKey[]): bigint {
   let bits = 0n;
   for (const key of keys) {
     bits |= Permissions[key];

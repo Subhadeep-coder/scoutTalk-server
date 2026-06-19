@@ -9,7 +9,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ServerMember } from '../../database/entities/server-member.entity';
 import { MemberRole as MemberRoleEntity } from '../../database/entities/member-role.entity';
-import { PERMISSIONS_KEY, PermissionsMetadata } from '../decorators/permissions.decorator';
+import {
+  PERMISSIONS_KEY,
+  PermissionsMetadata,
+} from '../decorators/permissions.decorator';
 import { MemberRole } from '../../database/entities/server-member.entity';
 import { hasPermission } from '../permissions';
 
