@@ -1,6 +1,7 @@
 import {
   WebSocketGateway as WsGateway,
   WebSocketServer,
+  SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
   OnGatewayInit,
@@ -58,13 +59,15 @@ export class WebsocketGateway
     const userId = (socket as any).userId;
   }
 
-  async joinServer(socket: Socket, serverId: string) {
-    const userId = (socket as any).userId;
+  @SubscribeMessage('joinServer')
+  async joinServer(client: Socket, serverId: string) {
+    const userId = (client as any).userId;
     if (!userId) return;
-    socket.join(`server:${serverId}`);
+    client.join(`server:${serverId}`);
   }
 
-  async leaveServer(socket: Socket, serverId: string) {
-    socket.leave(`server:${serverId}`);
+  @SubscribeMessage('leaveServer')
+  async leaveServer(client: Socket, serverId: string) {
+    client.leave(`server:${serverId}`);
   }
 }
