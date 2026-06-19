@@ -7,14 +7,15 @@ import {
 import { Reflector } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ServerMember } from '../../database/entities/server-member.entity';
+import { ServerMember, MemberRole } from '../../database/entities/server-member.entity';
 import { MemberRole as MemberRoleEntity } from '../../database/entities/member-role.entity';
+import { Channel } from '../../database/entities/channel.entity';
 import {
   PERMISSIONS_KEY,
   PermissionsMetadata,
 } from '../decorators/permissions.decorator';
-import { MemberRole } from '../../database/entities/server-member.entity';
 import { hasPermission } from '../permissions';
+import { ChannelPermissionsService } from '../../channel-permissions/channel-permissions.service';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -24,6 +25,9 @@ export class PermissionGuard implements CanActivate {
     private memberRepository: Repository<ServerMember>,
     @InjectRepository(MemberRoleEntity)
     private memberRoleRepository: Repository<MemberRoleEntity>,
+    @InjectRepository(Channel)
+    private channelRepository: Repository<Channel>,
+    private channelPermissionsService: ChannelPermissionsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -39,8 +43,20 @@ export class PermissionGuard implements CanActivate {
     if (!userId) return true;
 
     const paramName = metadata.paramName ?? 'serverId';
-    const serverId =
+    let serverId =
       request.params[paramName] ?? request.params.id ?? request.params.serverId;
+    const channelId = request.params.channelId;
+
+    if (!serverId && channelId) {
+      const channel = await this.channelRepository.findOne({
+        where: { id: channelId },
+        select: ['serverId'],
+      });
+      if (channel) {
+        serverId = channel.serverId;
+      }
+    }
+
     if (!serverId) return true;
 
     const member = await this.memberRepository.findOne({
@@ -63,6 +79,16 @@ export class PermissionGuard implements CanActivate {
       if (mr.role) {
         effectivePerms |= BigInt(mr.role.permissions);
       }
+    }
+
+    if (channelId) {
+      effectivePerms = BigInt(
+        await this.channelPermissionsService.resolveFromServerPermissions(
+          effectivePerms.toString(),
+          channelId,
+          member.id,
+        ),
+      );
     }
 
     const required = BigInt(metadata.permission);

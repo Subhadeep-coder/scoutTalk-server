@@ -7,10 +7,11 @@ import { Server } from '../database/entities/server.entity';
 import { ServerMember } from '../database/entities/server-member.entity';
 import { ServerRole } from '../database/entities/server-role.entity';
 import { MemberRole } from '../database/entities/member-role.entity';
+import { Channel } from '../database/entities/channel.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Server, ServerMember, ServerRole, MemberRole]),
+    TypeOrmModule.forFeature([Server, ServerMember, ServerRole, MemberRole, Channel]),
   ],
   controllers: [RolesController],
   providers: [RolesService, PermissionGuard],

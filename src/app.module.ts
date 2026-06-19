@@ -18,6 +18,7 @@ import { MessagesModule } from './messages/messages.module';
 import { ServerSettingsModule } from './server-settings/server-settings.module';
 import { RolesModule } from './roles/roles.module';
 import { EmojisModule } from './emojis/emojis.module';
+import { ChannelPermissionsModule } from './channel-permissions/channel-permissions.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { EmojisModule } from './emojis/emojis.module';
     ServerSettingsModule,
     RolesModule,
     EmojisModule,
+    ChannelPermissionsModule,
   ],
   controllers: [AppController],
   providers: [

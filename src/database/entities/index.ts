@@ -14,3 +14,4 @@ export { WelcomeMessage } from './welcome-message.entity';
 export { ServerRole } from './server-role.entity';
 export { MemberRole as MemberRoleEntity } from './member-role.entity';
 export { CustomEmoji } from './custom-emoji.entity';
+export { ChannelOverride } from './channel-override.entity';
