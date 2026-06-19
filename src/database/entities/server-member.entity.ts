@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { Server } from './server.entity';
+import { Invite } from './invite.entity';
 import { MemberRole as MemberRoleEntity } from './member-role.entity';
 
 export enum MemberRole {
@@ -35,6 +36,13 @@ export class ServerMember {
 
   @CreateDateColumn()
   joinedAt: Date;
+
+  @Column('uuid', { nullable: true })
+  joinedViaInviteId?: string;
+
+  @ManyToOne(() => Invite, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'joinedViaInviteId' })
+  invite?: Invite;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })

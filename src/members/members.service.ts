@@ -71,6 +71,8 @@ export class MembersService {
       .leftJoin('member.user', 'user')
       .leftJoinAndSelect('member.memberRoles', 'memberRoles')
       .leftJoin('memberRoles.role', 'role')
+      .leftJoin('member.invite', 'invite')
+      .leftJoin('invite.creator', 'inviteCreator')
       .addSelect([
         'user.id',
         'user.username',
@@ -81,6 +83,10 @@ export class MembersService {
         'user.activeServerTagId',
         'role.name',
         'role.color',
+        'invite.code',
+        'inviteCreator.id',
+        'inviteCreator.displayName',
+        'inviteCreator.avatar',
       ])
       .where('member.serverId = :serverId', { serverId })
       .orderBy('member.joinedAt', 'ASC')
@@ -213,6 +219,7 @@ export class MembersService {
           userId,
           serverId: invite.serverId,
           role: MemberRole.MEMBER,
+          joinedViaInviteId: invite.id,
         }),
       );
 
