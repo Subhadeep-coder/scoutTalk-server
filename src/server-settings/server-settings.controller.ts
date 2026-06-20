@@ -9,6 +9,7 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import {
@@ -18,6 +19,9 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ServerSettingsService } from './server-settings.service';
+import { PermissionGuard } from '../roles/guards/permissions.guard';
+import { Permissions } from '../roles/decorators/permissions.decorator';
+import { Permissions as Perm } from '../roles/permissions';
 import { SetTagDto } from './dto/set-tag.dto';
 import { UpdateEngagementDto } from './dto/update-engagement.dto';
 import { CreateWelcomeMessageDto } from './dto/create-welcome-message.dto';
@@ -30,12 +34,16 @@ export class ServerSettingsController {
   constructor(private settingsService: ServerSettingsService) {}
 
   @Get('tag')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.VIEW_CHANNEL)
   @ApiOperation({ summary: 'Get server tag' })
   async getTag(@Param('serverId') serverId: string) {
     return this.settingsService.getTag(serverId);
   }
 
   @Patch('tag')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @ApiOperation({ summary: 'Set or update server tag (admin only)' })
   async setTag(
     @Req() req: Request,
@@ -47,6 +55,8 @@ export class ServerSettingsController {
   }
 
   @Delete('tag')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove server tag (admin only)' })
   async deleteTag(@Req() req: Request, @Param('serverId') serverId: string) {
@@ -55,12 +65,16 @@ export class ServerSettingsController {
   }
 
   @Get('settings')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.VIEW_CHANNEL)
   @ApiOperation({ summary: 'Get server engagement settings' })
   async getEngagement(@Param('serverId') serverId: string) {
     return this.settingsService.getEngagement(serverId);
   }
 
   @Patch('settings')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @ApiOperation({ summary: 'Update server engagement settings (admin only)' })
   async updateEngagement(
     @Req() req: Request,
@@ -72,12 +86,16 @@ export class ServerSettingsController {
   }
 
   @Get('welcome-messages')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.VIEW_CHANNEL)
   @ApiOperation({ summary: 'List welcome messages' })
   async getWelcomeMessages(@Param('serverId') serverId: string) {
     return this.settingsService.getWelcomeMessages(serverId);
   }
 
   @Post('welcome-messages')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a welcome message (admin only)' })
   async createWelcomeMessage(
@@ -90,6 +108,8 @@ export class ServerSettingsController {
   }
 
   @Patch('welcome-messages/:messageId')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @ApiOperation({ summary: 'Update a welcome message (admin only)' })
   async updateWelcomeMessage(
     @Req() req: Request,
@@ -107,6 +127,8 @@ export class ServerSettingsController {
   }
 
   @Delete('welcome-messages/:messageId')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a welcome message (admin only)' })
   async deleteWelcomeMessage(

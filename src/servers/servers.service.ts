@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, In } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { Server } from '../database/entities/server.entity';
 import { Category } from '../database/entities/category.entity';
@@ -24,6 +24,9 @@ import {
   ALL_PERMISSIONS,
   EVERYONE_DEFAULT_PERMISSIONS,
 } from '../roles/permissions';
+import { ChannelOverride } from '../database/entities/channel-override.entity';
+import { RolesService } from '../roles/roles.service';
+import { Permissions } from '../roles/permissions';
 
 @Injectable()
 export class ServersService {
@@ -38,7 +41,12 @@ export class ServersService {
     private channelRepository: Repository<Channel>,
     @InjectRepository(ServerMember)
     private memberRepository: Repository<ServerMember>,
+    @InjectRepository(ChannelOverride)
+    private overrideRepository: Repository<ChannelOverride>,
+    @InjectRepository(MemberRoleEntity)
+    private memberRoleRepository: Repository<MemberRoleEntity>,
     private dataSource: DataSource,
+    private rolesService: RolesService,
   ) {}
 
   async create(userId: string, dto: CreateServerDto): Promise<Server> {
@@ -155,6 +163,113 @@ export class ServersService {
     return this.findById(result);
   }
 
+  async findByIdForMember(
+    serverId: string,
+    userId: string,
+  ): Promise<Server & { memberPermissions: string; channelPermissions: Record<string, string> }> {
+    const server = await this.findById(serverId);
+
+    const member = await this.memberRepository.findOne({
+      where: { serverId, userId },
+    });
+
+    if (!member) {
+      throw new NotFoundException('You are not a member of this server');
+    }
+
+    if (member.role === MemberRole.OWNER) {
+      const allPerms = ALL_PERMISSIONS.toString();
+      const channelPerms: Record<string, string> = {};
+      for (const ch of server.channels) {
+        channelPerms[ch.id] = allPerms;
+      }
+      return Object.assign(server, {
+        memberPermissions: allPerms,
+        channelPermissions: channelPerms,
+      });
+    }
+
+    const memberRoles = await this.memberRoleRepository.find({
+      where: { memberId: member.id },
+      relations: ['role'],
+    });
+
+    const allOverrides = await this.overrideRepository.find({
+      where: { channelId: In(server.channels.map((c) => c.id)) },
+    });
+
+    const computeChannelPerms = (channelId: string): bigint => {
+      const everyoneOverride = allOverrides.find(
+        (o) =>
+          o.channelId === channelId &&
+          o.roleId &&
+          memberRoles.some(
+            (mr) => mr.role?.isDefault && mr.role.id === o.roleId,
+          ),
+      );
+
+      let perms = 0n;
+      for (const mr of memberRoles) {
+        if (mr.role) perms |= BigInt(mr.role.permissions);
+      }
+
+      if (everyoneOverride) {
+        perms =
+          (perms & ~BigInt(everyoneOverride.deny)) |
+          BigInt(everyoneOverride.allow);
+      }
+
+      for (const mr of memberRoles) {
+        if (!mr.role) continue;
+        const override = allOverrides.find(
+          (o) => o.channelId === channelId && o.roleId === mr.role.id,
+        );
+        if (override) {
+          perms = (perms & ~BigInt(override.deny)) | BigInt(override.allow);
+        }
+      }
+
+      const memberOverride = allOverrides.find(
+        (o) => o.channelId === channelId && o.memberId === member.id,
+      );
+      if (memberOverride) {
+        perms =
+          (perms & ~BigInt(memberOverride.deny)) | BigInt(memberOverride.allow);
+      }
+
+      return perms;
+    };
+
+    const memberPermissions = (() => {
+      let perms = 0n;
+      for (const mr of memberRoles) {
+        if (mr.role) perms |= BigInt(mr.role.permissions);
+      }
+      return perms;
+    })();
+
+    const channelPermissions: Record<string, string> = {};
+    const visibleChannels: Channel[] = [];
+
+    for (const ch of server.channels) {
+      const effectivePerms = computeChannelPerms(ch.id);
+      channelPermissions[ch.id] = effectivePerms.toString();
+      if ((effectivePerms & Permissions.VIEW_CHANNEL) !== 0n) {
+        visibleChannels.push(ch);
+      }
+    }
+
+    server.channels = visibleChannels;
+    server.categories = server.categories.filter((cat) =>
+      server.channels.some((ch) => ch.categoryId === cat.id),
+    );
+
+    return Object.assign(server, {
+      memberPermissions: memberPermissions.toString(),
+      channelPermissions,
+    });
+  }
+
   async findById(serverId: string): Promise<Server> {
     const server = await this.serverRepository.findOne({
       where: { id: serverId },
@@ -188,9 +303,16 @@ export class ServersService {
     const server = await this.findById(serverId);
 
     if (server.ownerId !== userId) {
-      throw new ForbiddenException(
-        'Only the server owner can update the server',
+      const hasPerm = await this.rolesService.checkPermission(
+        serverId,
+        userId,
+        Permissions.MANAGE_GUILD,
       );
+      if (!hasPerm) {
+        throw new ForbiddenException(
+          'You do not have permission to update this server',
+        );
+      }
     }
 
     await this.serverRepository.update(serverId, dto);

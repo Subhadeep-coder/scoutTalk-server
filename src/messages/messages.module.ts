@@ -5,9 +5,13 @@ import { MessagesService } from './messages.service';
 import { Message } from '../database/entities/message.entity';
 import { Channel } from '../database/entities/channel.entity';
 import { ServerMember } from '../database/entities/server-member.entity';
+import { RolesModule } from '../roles/roles.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Message, Channel, ServerMember])],
+  imports: [
+    TypeOrmModule.forFeature([Message, Channel, ServerMember]),
+    RolesModule,
+  ],
   controllers: [MessagesController],
   providers: [MessagesService],
   exports: [MessagesService],

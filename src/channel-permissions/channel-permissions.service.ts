@@ -69,7 +69,7 @@ export class ChannelPermissionsService {
     effectivePerms = await this.applyOverrides(
       effectivePerms,
       channelId,
-      memberRoles.map((mr) => mr.role!),
+      memberRoles.map((mr) => mr.role),
       member.id,
     );
 
@@ -92,7 +92,7 @@ export class ChannelPermissionsService {
     effectivePerms = await this.applyOverrides(
       effectivePerms,
       channelId,
-      memberRoles.map((mr) => mr.role!),
+      memberRoles.map((mr) => mr.role),
       memberId,
     );
 
@@ -132,7 +132,8 @@ export class ChannelPermissionsService {
     const memberOverride = overrides.find((o) => o.memberId === memberId);
     if (memberOverride) {
       effective =
-        (effective & ~BigInt(memberOverride.deny)) | BigInt(memberOverride.allow);
+        (effective & ~BigInt(memberOverride.deny)) |
+        BigInt(memberOverride.allow);
     }
 
     return effective;
@@ -191,12 +192,12 @@ export class ChannelPermissionsService {
 
   async setMemberOverride(
     channelId: string,
-    targetMemberId: string,
+    memberId: string,
     allow: string,
     deny: string,
   ) {
     const existing = await this.overrideRepository.findOne({
-      where: { channelId, memberId: targetMemberId },
+      where: { channelId, memberId },
     });
 
     if (existing) {
@@ -208,7 +209,7 @@ export class ChannelPermissionsService {
     return this.overrideRepository.save(
       this.overrideRepository.create({
         channelId,
-        memberId: targetMemberId,
+        memberId,
         allow,
         deny,
       }),

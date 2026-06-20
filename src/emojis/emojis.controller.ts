@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
@@ -22,6 +23,9 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { EmojisService } from './emojis.service';
+import { PermissionGuard } from '../roles/guards/permissions.guard';
+import { Permissions } from '../roles/decorators/permissions.decorator';
+import { Permissions as Perm } from '../roles/permissions';
 import { CreateEmojiDto } from './dto/create-emoji.dto';
 import { EmojiResponseDto } from './dto/emoji-response.dto';
 
@@ -32,6 +36,8 @@ export class EmojisController {
   constructor(private emojisService: EmojisService) {}
 
   @Get()
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.VIEW_CHANNEL)
   @ApiOperation({ summary: 'List custom emojis for a server' })
   @ApiResponse({ status: 200, type: [EmojiResponseDto] })
   async findAll(@Param('serverId') serverId: string) {
@@ -39,6 +45,8 @@ export class EmojisController {
   }
 
   @Get(':emojiId')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.VIEW_CHANNEL)
   @ApiOperation({ summary: 'Get a specific emoji' })
   @ApiResponse({ status: 200, type: EmojiResponseDto })
   async findOne(
@@ -49,6 +57,8 @@ export class EmojisController {
   }
 
   @Post()
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_EXPRESSIONS)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 512 * 1024 } }),
   )
@@ -75,6 +85,8 @@ export class EmojisController {
   }
 
   @Delete(':emojiId')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_EXPRESSIONS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a custom emoji (admin only)' })
   async delete(

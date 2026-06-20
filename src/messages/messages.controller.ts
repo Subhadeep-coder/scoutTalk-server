@@ -12,6 +12,7 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFiles,
+  UseGuards,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
@@ -25,11 +26,9 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Channel } from '../database/entities/channel.entity';
-import { ServerMember } from '../database/entities/server-member.entity';
+import { PermissionGuard } from '../roles/guards/permissions.guard';
+import { Permissions } from '../roles/decorators/permissions.decorator';
+import { Permissions as Perm } from '../roles/permissions';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageResponseDto } from './dto/message-response.dto';
 
@@ -37,16 +36,11 @@ import { MessageResponseDto } from './dto/message-response.dto';
 @ApiBearerAuth('JWT-auth')
 @Controller()
 export class MessagesController {
-  constructor(
-    private messagesService: MessagesService,
-    private cloudinary: CloudinaryService,
-    @InjectRepository(Channel)
-    private channelRepository: Repository<Channel>,
-    @InjectRepository(ServerMember)
-    private memberRepository: Repository<ServerMember>,
-  ) {}
+  constructor(private messagesService: MessagesService) {}
 
   @Post('channels/:channelId/messages')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.SEND_MESSAGES, 'channelId')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Send a message' })
   @ApiResponse({
@@ -64,6 +58,8 @@ export class MessagesController {
   }
 
   @Post('channels/:channelId/attachments')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.ATTACH_FILES, 'channelId')
   @UseInterceptors(
     FilesInterceptor('files', 10, { limits: { fileSize: 10 * 1024 * 1024 } }),
   )
@@ -87,38 +83,7 @@ export class MessagesController {
     @UploadedFiles() files: Express.Multer.File[],
   ) {
     const userId = (req as any).user.userId;
-
-    const channel = await this.channelRepository.findOne({
-      where: { id: channelId },
-    });
-    if (!channel) {
-      return { statusCode: 404, message: 'Channel not found' };
-    }
-
-    const member = await this.memberRepository.findOne({
-      where: { serverId: channel.serverId, userId },
-    });
-    if (!member) {
-      return {
-        statusCode: 403,
-        message: 'You are not a member of this server',
-      };
-    }
-
-    const results = await Promise.all(
-      files.map((file) =>
-        this.cloudinary.uploadFromBuffer(file.buffer, {
-          folder: `servers/${channel.serverId}/channels/${channelId}`,
-          resourceType: 'auto',
-        }),
-      ),
-    );
-
-    return results.map((r) => ({
-      url: r.url,
-      type: r.format,
-      name: r.publicId.split('/').pop(),
-    }));
+    return this.messagesService.uploadAttachments(userId, channelId, files);
   }
 
   @Patch('messages/:id')
@@ -139,26 +104,6 @@ export class MessagesController {
   ) {
     const userId = (req as any).user.userId;
     return this.messagesService.update(id, userId, content);
-  }
-
-  @Delete('attachments')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete files from Cloudinary by URLs' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        urls: {
-          type: 'array',
-          items: { type: 'string' },
-        },
-      },
-    },
-  })
-  async deleteAttachments(@Body('urls') urls: string[]) {
-    if (urls?.length) {
-      await this.cloudinary.deleteByUrls(urls);
-    }
   }
 
   @Delete('messages/:messageId/attachments')
@@ -184,6 +129,8 @@ export class MessagesController {
   }
 
   @Get('channels/:channelId/messages')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.READ_MESSAGE_HISTORY, 'channelId')
   @ApiOperation({ summary: 'Get messages in a channel' })
   @ApiResponse({
     status: 200,

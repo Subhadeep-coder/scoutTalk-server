@@ -75,6 +75,12 @@ export class ServerResponseDto {
 
   @ApiProperty({ type: [MemberDto] })
   members: MemberDto[];
+
+  @ApiProperty({ description: 'Current member effective server-level permissions as BigInt string' })
+  memberPermissions: string;
+
+  @ApiProperty({ description: 'Map of channelId -> effective permissions (BigInt string) for each visible channel' })
+  channelPermissions: Record<string, string>;
 }
 
 export class ServerListDto {

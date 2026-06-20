@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UseInterceptors,
   UploadedFile,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
@@ -24,6 +25,9 @@ import {
 } from '@nestjs/swagger';
 import { ServersService } from './servers.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { PermissionGuard } from '../roles/guards/permissions.guard';
+import { Permissions } from '../roles/decorators/permissions.decorator';
+import { Permissions as Perm } from '../roles/permissions';
 import { CreateServerDto } from './dto/create-server.dto';
 import { UpdateServerDto } from './dto/update-server.dto';
 import { ServerResponseDto, ServerListDto } from './dto/server-response.dto';
@@ -70,11 +74,14 @@ export class ServersController {
     type: ServerResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Server not found' })
-  async getServer(@Param('id') id: string) {
-    return this.serversService.findById(id);
+  async getServer(@Req() req: Request, @Param('id') id: string) {
+    const userId = (req as any).user.userId;
+    return this.serversService.findByIdForMember(id, userId);
   }
 
   @Patch(':id')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @ApiOperation({ summary: 'Update server' })
   @ApiResponse({
     status: 200,
@@ -114,6 +121,8 @@ export class ServersController {
   }
 
   @Post(':id/avatar')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
   )
@@ -142,6 +151,8 @@ export class ServersController {
   }
 
   @Post(':id/banner')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
   )

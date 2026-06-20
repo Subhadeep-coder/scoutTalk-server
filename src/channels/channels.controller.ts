@@ -8,6 +8,7 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 
@@ -21,6 +22,9 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ChannelsService } from './channels.service';
+import { PermissionGuard } from '../roles/guards/permissions.guard';
+import { Permissions } from '../roles/decorators/permissions.decorator';
+import { Permissions as Perm } from '../roles/permissions';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
@@ -35,6 +39,8 @@ export class ChannelsController {
   constructor(private channelsService: ChannelsService) {}
 
   @Post('categories')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_CHANNELS)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a category' })
   @ApiResponse({ status: 201, description: 'Category created' })
@@ -43,6 +49,8 @@ export class ChannelsController {
   }
 
   @Patch('categories/reorder')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_CHANNELS)
   @ApiOperation({ summary: 'Reorder categories within a server' })
   @ApiResponse({ status: 200, description: 'Categories reordered' })
   async reorderCategories(
@@ -57,10 +65,13 @@ export class ChannelsController {
   }
 
   @Patch('categories/:id')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_CHANNELS, 'id')
   @ApiOperation({ summary: 'Update a category' })
   @ApiResponse({ status: 200, description: 'Category updated' })
   @ApiResponse({ status: 404, description: 'Category not found' })
   async updateCategory(
+    @Req() req: AuthRequest,
     @Param('id') id: string,
     @Body() dto: UpdateCategoryDto,
   ) {
@@ -68,6 +79,8 @@ export class ChannelsController {
   }
 
   @Delete('categories/:id')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_CHANNELS, 'id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a category' })
   @ApiResponse({ status: 204, description: 'Category deleted' })
@@ -77,6 +90,8 @@ export class ChannelsController {
   }
 
   @Post('channels')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_CHANNELS)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a channel' })
   @ApiResponse({ status: 201, description: 'Channel created' })
@@ -85,6 +100,8 @@ export class ChannelsController {
   }
 
   @Patch('channels/reorder')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_CHANNELS)
   @ApiOperation({ summary: 'Reorder channels within a category' })
   @ApiResponse({ status: 200, description: 'Channels reordered' })
   async reorderChannels(
@@ -100,6 +117,8 @@ export class ChannelsController {
   }
 
   @Patch('channels/:id')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_CHANNELS, 'id')
   @ApiOperation({ summary: 'Update a channel' })
   @ApiResponse({ status: 200, description: 'Channel updated' })
   @ApiResponse({ status: 404, description: 'Channel not found' })
@@ -108,6 +127,8 @@ export class ChannelsController {
   }
 
   @Delete('channels/:id')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_CHANNELS, 'id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a channel' })
   @ApiResponse({ status: 204, description: 'Channel deleted' })

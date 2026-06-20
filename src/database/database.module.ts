@@ -18,6 +18,7 @@ import {
   ServerRole,
   MemberRoleEntity,
   CustomEmoji,
+  ChannelOverride,
 } from './entities';
 
 @Global()
@@ -50,6 +51,7 @@ import {
           ServerRole,
           MemberRoleEntity,
           CustomEmoji,
+          ChannelOverride,
         ],
         synchronize: configService.get<boolean>('DATABASE_SYNCHRONIZE', false),
         logging: configService.get<boolean>('DATABASE_LOGGING', false),
@@ -72,6 +74,7 @@ import {
       ServerRole,
       MemberRoleEntity,
       CustomEmoji,
+      ChannelOverride,
     ]),
   ],
   exports: [TypeOrmModule],

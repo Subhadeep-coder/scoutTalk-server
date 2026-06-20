@@ -8,6 +8,7 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import {
@@ -17,6 +18,9 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { MembersService } from './members.service';
+import { PermissionGuard } from '../roles/guards/permissions.guard';
+import { Permissions } from '../roles/decorators/permissions.decorator';
+import { Permissions as Perm } from '../roles/permissions';
 import { JoinServerDto } from './dto/join-server.dto';
 import { CreateInviteDto } from './dto/create-invite.dto';
 
@@ -49,6 +53,8 @@ export class MembersController {
   }
 
   @Post('servers/:serverId/invites')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.CREATE_INSTANT_INVITE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Generate an invite code' })
   @ApiResponse({ status: 201, description: 'Invite created' })
@@ -63,6 +69,8 @@ export class MembersController {
   }
 
   @Get('servers/:serverId/invites')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @ApiOperation({ summary: 'List all active invites' })
   @ApiResponse({ status: 200, description: 'List of invites' })
   @ApiResponse({ status: 404, description: 'Not a member' })
@@ -72,6 +80,8 @@ export class MembersController {
   }
 
   @Delete('servers/:serverId/invites/:inviteId')
+  @UseGuards(PermissionGuard)
+  @Permissions(Perm.MANAGE_GUILD)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke an invite code' })
   @ApiResponse({ status: 204, description: 'Invite revoked' })

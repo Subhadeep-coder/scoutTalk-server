@@ -12,6 +12,8 @@ import { ServerMember } from '../database/entities/server-member.entity';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { WebsocketService } from '../websocket/websocket.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { RolesService } from '../roles/roles.service';
+import { Permissions } from '../roles/permissions';
 
 @Injectable()
 export class MessagesService {
@@ -24,6 +26,7 @@ export class MessagesService {
     private memberRepository: Repository<ServerMember>,
     private websocketService: WebsocketService,
     private cloudinary: CloudinaryService,
+    private rolesService: RolesService,
   ) {}
 
   async create(
@@ -118,6 +121,32 @@ export class MessagesService {
     return messages.reverse();
   }
 
+  async uploadAttachments(
+    userId: string,
+    channelId: string,
+    files: Express.Multer.File[],
+  ) {
+    const channel = await this.channelRepository.findOne({
+      where: { id: channelId },
+    });
+    if (!channel) throw new NotFoundException('Channel not found');
+
+    const results = await Promise.all(
+      files.map((file) =>
+        this.cloudinary.uploadFromBuffer(file.buffer, {
+          folder: `servers/${channel.serverId}/channels/${channelId}`,
+          resourceType: 'auto',
+        }),
+      ),
+    );
+
+    return results.map((r) => ({
+      url: r.url,
+      type: r.format,
+      name: r.publicId.split('/').pop(),
+    }));
+  }
+
   async findById(messageId: string): Promise<Message> {
     const message = await this.messageRepository
       .createQueryBuilder('m')
@@ -159,6 +188,23 @@ export class MessagesService {
     return message;
   }
 
+  private async assertCanModify(
+    message: Message,
+    userId: string,
+  ): Promise<void> {
+    if (message.authorId === userId) return;
+    const hasPerm = await this.rolesService.checkPermission(
+      message.serverId,
+      userId,
+      Permissions.MANAGE_MESSAGES,
+    );
+    if (!hasPerm) {
+      throw new ForbiddenException(
+        'You do not have permission to modify this message',
+      );
+    }
+  }
+
   async update(
     messageId: string,
     userId: string,
@@ -172,9 +218,7 @@ export class MessagesService {
       throw new NotFoundException('Message not found');
     }
 
-    if (message.authorId !== userId) {
-      throw new ForbiddenException('You can only edit your own messages');
-    }
+    await this.assertCanModify(message, userId);
 
     if (content !== undefined && content !== null && content.trim() === '') {
       throw new BadRequestException('Content cannot be empty');
@@ -208,9 +252,7 @@ export class MessagesService {
       throw new NotFoundException('Message not found');
     }
 
-    if (message.authorId !== userId) {
-      throw new ForbiddenException('You can only edit your own messages');
-    }
+    await this.assertCanModify(message, userId);
 
     const attachments = message.attachments ?? [];
     const idx = attachments.findIndex((a) => a.url === url);
@@ -239,9 +281,7 @@ export class MessagesService {
   async delete(messageId: string, userId: string): Promise<void> {
     const message = await this.findById(messageId);
 
-    if (message.authorId !== userId) {
-      throw new ForbiddenException('You can only delete your own messages');
-    }
+    await this.assertCanModify(message, userId);
 
     const attachments = message.attachments ?? [];
 

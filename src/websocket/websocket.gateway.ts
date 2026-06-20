@@ -125,10 +125,27 @@ export class WebsocketGateway
     }
   }
 
+  private async isServerMember(
+    userId: string,
+    serverId: string,
+  ): Promise<boolean> {
+    const count = await this.memberRepository.count({
+      where: { userId, serverId },
+    });
+    return count > 0;
+  }
+
   @SubscribeMessage('joinServer')
   async joinServer(client: Socket, serverId: string) {
     const userId = (client as any).userId;
     if (!userId) return;
+
+    const isMember = await this.isServerMember(userId, serverId);
+    if (!isMember) {
+      client.emit('error', { message: 'You are not a member of this server' });
+      return;
+    }
+
     client.join(`server:${serverId}`);
 
     const serverIds = (client as any).serverIds as string[] | undefined;
@@ -143,9 +160,18 @@ export class WebsocketGateway
   }
 
   @SubscribeMessage('typing:start')
-  typingStart(client: Socket, payload: { channelId: string; serverId: string }) {
-    const user = (client as any).user as { id: string; username?: string; displayName?: string; avatar?: string } | undefined;
-    if (!user) return;
+  async typingStart(
+    client: Socket,
+    payload: { channelId: string; serverId: string },
+  ) {
+    const user = (client as any).user as
+      | { id: string; username?: string; displayName?: string; avatar?: string }
+      | undefined;
+    const userId = (client as any).userId as string | undefined;
+    if (!user || !userId) return;
+
+    const isMember = await this.isServerMember(userId, payload.serverId);
+    if (!isMember) return;
 
     this.server.to(`server:${payload.serverId}`).emit('channel:typing', {
       userId: user.id,
@@ -155,9 +181,16 @@ export class WebsocketGateway
   }
 
   @SubscribeMessage('typing:stop')
-  typingStop(client: Socket, payload: { channelId: string; serverId: string }) {
+  async typingStop(
+    client: Socket,
+    payload: { channelId: string; serverId: string },
+  ) {
     const user = (client as any).user as { id: string } | undefined;
-    if (!user) return;
+    const userId = (client as any).userId as string | undefined;
+    if (!user || !userId) return;
+
+    const isMember = await this.isServerMember(userId, payload.serverId);
+    if (!isMember) return;
 
     this.server.to(`server:${payload.serverId}`).emit('channel:typing:stop', {
       userId: user.id,
