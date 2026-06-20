@@ -7,6 +7,8 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+
+export type SystemMessageType = 'join' | 'boost' | 'pin' | 'default';
 import { User } from './user.entity';
 import { Server } from './server.entity';
 import { Channel } from './channel.entity';
@@ -16,8 +18,8 @@ export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
-  authorId: string;
+  @Column('uuid', { nullable: true })
+  authorId: string | null;
 
   @Column('uuid')
   channelId: string;
@@ -44,15 +46,18 @@ export class Message {
   @Column('boolean', { default: false })
   isSystem: boolean;
 
+  @Column('varchar', { nullable: true })
+  systemType: SystemMessageType | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'authorId' })
-  author: User;
+  author: User | null;
 
   @ManyToOne(() => Channel, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'channelId' })

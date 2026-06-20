@@ -349,18 +349,18 @@ export class MembersService {
       );
 
       const message = this.messageRepository.create({
-        authorId: userId,
+        authorId: null,
         channelId: config.systemChannelId,
         serverId,
         content,
         attachments: [],
         isSystem: true,
+        systemType: 'join',
       });
 
       const saved = await this.messageRepository.save(message);
       const result = await this.messageRepository.findOne({
         where: { id: saved.id },
-        relations: ['author'],
       });
 
       this.websocketService.emitToServer(serverId, 'message:new', result);
