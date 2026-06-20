@@ -16,7 +16,7 @@ export class EmailVerificationToken {
   @Column('uuid')
   userId: string;
 
-  @Column('varchar', { unique: true })
+  @Column('varchar', { unique: true, select: false })
   token: string;
 
   @Column('timestamp')
